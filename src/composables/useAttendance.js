@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue';
 import { db } from '../firebase';
-import { ref as dbRef, onValue, set } from 'firebase/database';
+import { ref as dbRef, onValue, set, update } from 'firebase/database';
 
 export function useAttendance() {
   const currentTime = ref(new Date());
@@ -51,8 +51,8 @@ export function useAttendance() {
         return { success: false, message: 'Ya tiene asistencia marcada' };
     }
 
-    // Use current time if today, else default to 08:00:00 for past dates
-    const timestamp = isToday ? new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '08:00:00';
+    // Use fixed time 08:00:00 as requested
+    const timestamp = '08:00:00';
     
     const record = { 
         checkIn: timestamp,
@@ -81,10 +81,62 @@ export function useAttendance() {
       }
   };
 
+  const markAbsent = async (personId, date = null) => {
+      const targetDate = date || getTodayDateString();
+      if (records.value[targetDate] && records.value[targetDate][personId]) {
+          return { success: false, message: 'Ya tiene registro (debe desmarcar primero)' };
+      }
+
+      const record = { 
+          checkIn: '-',
+          status: 'Falta'
+      };
+
+      try {
+          const recordRef = dbRef(db, `attendance/${targetDate}/${personId}`);
+          await set(recordRef, record);
+          return { success: true, message: 'Marcado como Falta' };
+      } catch (e) {
+          console.error("Firebase Error in markAbsent:", e);
+          return { success: false, message: 'Error al guardar: ' + e.message };
+      }
+  };
+
+  const markAll = async (personnelList, date = null) => {
+      const targetDate = date || getTodayDateString();
+      const updates = {};
+      let count = 0;
+      
+      const timestamp = '08:00:00';
+
+      personnelList.forEach(person => {
+          // Only mark if not already registered
+          if (!records.value[targetDate] || !records.value[targetDate][person.id]) {
+               updates[`attendance/${targetDate}/${person.id}`] = {
+                   checkIn: timestamp,
+                   status: 'Presente'
+               };
+               count++;
+          }
+      });
+
+      if (count === 0) return { success: true, message: 'Todos ya estaban registrados' };
+
+      try {
+          // We can't use 'update' on root easily without full path, so we loop set or use update on root
+          // Better: use update() on root db reference with paths
+          await update(dbRef(db), updates);
+          return { success: true, message: `Se marcaron ${count} colaboradores` };
+      } catch (e) {
+           console.error("Firebase Error in markAll:", e);
+           return { success: false, message: 'Error al guardar masivo: ' + e.message };
+      }
+  };
+
   const getStatus = (personId, date = null) => {
     const targetDate = date || getTodayDateString();
     if (records.value[targetDate] && records.value[targetDate][personId]) {
-      return records.value[targetDate][personId];
+      return records.value[targetDate][personId]; // Returns object { checkIn, status }
     }
     return null;
   };
@@ -96,6 +148,8 @@ export function useAttendance() {
     isWithinSchedule,
     checkIn,
     removeCheckIn,
+    markAbsent,
+    markAll,
     getStatus,
     records // Export records so useReports can use it
   };

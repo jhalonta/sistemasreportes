@@ -40,14 +40,22 @@ export function useReports() {
 
       // Format checkIn to HH:MM (remove seconds if present)
       let formattedCheckIn = '';
-      if (attendance && attendance.checkIn) {
-          // Assuming format is HH:MM:SS or H:MM:SS or similar
-          // split by ':' and take first two parts
-          const parts = attendance.checkIn.split(':');
-          if (parts.length >= 2) {
-              formattedCheckIn = `${parts[0]}:${parts[1]}`;
-          } else {
-              formattedCheckIn = attendance.checkIn;
+      let formattedCheckOut = '';
+
+      if (attendance) {
+          if (attendance.status === 'Falta') {
+              formattedCheckIn = 'NO ASISTIÓ';
+              formattedCheckOut = 'NO ASISTIÓ';
+          } else if (attendance.checkIn) {
+              // Assuming format is HH:MM:SS or H:MM:SS or similar
+              // split by ':' and take first two parts
+              const parts = attendance.checkIn.split(':');
+              if (parts.length >= 2) {
+                  formattedCheckIn = `${parts[0]}:${parts[1]}`;
+              } else {
+                  formattedCheckIn = attendance.checkIn;
+              }
+              formattedCheckOut = '18:00';
           }
       }
 
@@ -57,7 +65,7 @@ export function useReports() {
         dni: person.dni,
         role: person.role,
         checkIn: formattedCheckIn, 
-        checkOut: attendance ? '18:00' : '', // This might need a real field later
+        checkOut: formattedCheckOut, 
         activity: activityDesc,
         activitiesList: activityDetails,
         signature: '' // Placeholder for print

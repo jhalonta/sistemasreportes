@@ -164,8 +164,8 @@ const printReport = () => {
             <th class="w-time-col">ING.</th>
             <th class="w-time-col">SAL.</th>
             <th class="w-desc">CÓDIGO</th>
-            <th class="w-meta">META</th>
-            <th class="w-real">REAL</th>
+            <th class="w-meta">ASIGNADA</th>
+            <th class="w-real">REALIZADA</th>
           </tr>
         </thead>
         <tbody>

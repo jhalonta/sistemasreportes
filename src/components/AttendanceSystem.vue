@@ -6,7 +6,7 @@ import { useNotifications } from '../composables/useNotifications';
 import { useGlobalStore } from '../stores/global';
 import { storeToRefs } from 'pinia';
 
-const { currentTime, isWithinSchedule, checkIn, removeCheckIn, getStatus } = useAttendance();
+const { currentTime, isWithinSchedule, checkIn, removeCheckIn, markAbsent, markAll, getStatus } = useAttendance();
 const { showNotification } = useNotifications();
 
 const globalStore = useGlobalStore();
@@ -26,7 +26,8 @@ const formattedDate = computed(() => {
 });
 
 const toggleAttendance = async (personId) => {
-  const isRegistered = !!getStatus(personId, selectedDate.value);
+  const status = getStatus(personId, selectedDate.value);
+  const isRegistered = !!status;
   let result;
   
   if (isRegistered) {
@@ -38,6 +39,17 @@ const toggleAttendance = async (personId) => {
   }
 
   showNotification(result.message, result.success ? 'success' : 'error');
+};
+
+const handleMarkAbsent = async (personId) => {
+    const result = await markAbsent(personId, selectedDate.value);
+    showNotification(result.message, result.success ? 'success' : 'error');
+};
+
+const handleMarkAll = async () => {
+    // Confirm? Maybe not needed for now, but good practice
+    const result = await markAll(personnel, selectedDate.value);
+    showNotification(result.message, result.success ? 'success' : 'error');
 };
 </script>
 
@@ -57,13 +69,19 @@ const toggleAttendance = async (personId) => {
           <span class="date">{{ formattedDate }}</span>
         </div>
         
-        <div class="status-badge" :class="{ 'open': isWithinSchedule, 'closed': !isWithinSchedule }" v-if="isToday">
-          <span class="status-dot"></span>
-          {{ isWithinSchedule ? 'SISTEMA ABIERTO' : 'SISTEMA CERRADO' }}
-        </div>
-        <div class="status-badge manual" v-else>
-            <span class="status-dot"></span>
-            MODO HISTÓRICO
+        <div class="actions-wrapper">
+             <div class="status-badge" :class="{ 'open': isWithinSchedule, 'closed': !isWithinSchedule }" v-if="isToday">
+              <span class="status-dot"></span>
+              {{ isWithinSchedule ? 'SISTEMA ABIERTO' : 'SISTEMA CERRADO' }}
+            </div>
+            <div class="status-badge manual" v-else>
+                <span class="status-dot"></span>
+                MODO HISTÓRICO
+            </div>
+            
+            <button v-if="isToday && isWithinSchedule" @click="handleMarkAll" class="btn-mark-all">
+                Marcar Todos (Presente)
+            </button>
         </div>
       </div>
     </header>
@@ -89,14 +107,17 @@ const toggleAttendance = async (personId) => {
               </td>
               <td class="role-cell">{{ person.role }}</td>
               <td>
-                <div v-if="getStatus(person.id, selectedDate)" class="status-pill present">
+                <div v-if="getStatus(person.id, selectedDate)?.status === 'Presente'" class="status-pill present">
                   Presente
+                </div>
+                <div v-else-if="getStatus(person.id, selectedDate)?.status === 'Falta'" class="status-pill absent">
+                  Falta
                 </div>
                 <div v-else class="status-pill pending">
                   Pendiente
                 </div>
               </td>
-              <td>
+              <td class="actions-cell">
                 <button 
                   @click="toggleAttendance(person.id)" 
                   :disabled="isToday && !isWithinSchedule"
@@ -104,6 +125,16 @@ const toggleAttendance = async (personId) => {
                   :class="{ 'btn-danger': getStatus(person.id, selectedDate) }"
                 >
                   {{ getStatus(person.id, selectedDate) ? 'Desmarcar' : 'Marcar' }}
+                </button>
+                
+                <button 
+                    v-if="!getStatus(person.id, selectedDate)"
+                    @click="handleMarkAbsent(person.id)"
+                    :disabled="isToday && !isWithinSchedule"
+                    class="btn-absent"
+                    title="Marcar como Falta"
+                >
+                    🚫
                 </button>
               </td>
             </tr>
@@ -377,6 +408,70 @@ td {
 .btn-checkin:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+}
+
+/* Actions Wrapper in Header */
+.actions-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.btn-mark-all {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 0.6rem 1.25rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-mark-all:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4);
+}
+
+/* Actions Cell */
+.actions-cell {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.btn-absent {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #64748b;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+}
+
+.btn-absent:hover {
+    background: #fee2e2;
+    color: #ef4444;
+    border-color: #fecaca;
+    transform: translateY(-2px);
+}
+
+/* Status Pill Absent */
+.status-pill.absent {
+  background-color: #fee2e2;
+  color: #ef4444;
 }
 
 /* Red button for 'Desmarcar' */
