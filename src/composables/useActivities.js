@@ -1,76 +1,72 @@
 import { ref } from 'vue';
+import { db } from '../firebase';
+import { ref as dbRef, push, onValue, update, remove } from 'firebase/database';
 
-const STORAGE_KEY = 'activity_logs';
-
-// Singleton State (Strictly outside the function)
+// Singleton State
 const activities = ref([]);
 const loaded = ref(false);
 
 export function useActivities() {
   
-  const saveToStorage = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(activities.value));
-  };
-
+  // Listen for real-time updates
   const loadActivities = () => {
-    if (loaded.value) return; 
+    if (loaded.value) return;
 
+    const activitiesRef = dbRef(db, 'activities');
+    
+    onValue(activitiesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // Convert object of objects to array
+        const eventsArray = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        }));
+        // Sort by timestamp desc (newest first)
+        activities.value = eventsArray.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      } else {
+        activities.value = [];
+      }
+      loaded.value = true;
+    }, (error) => {
+      console.error("Error reading activities:", error);
+    });
+  };
+
+  const addActivity = async (activity) => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          activities.value = parsed;
-        } else {
-            console.error('Invalid activities data format, resetting.');
-            activities.value = [];
-        }
-      }
+      const activitiesRef = dbRef(db, 'activities');
+      await push(activitiesRef, {
+        timestamp: activity.timestamp || new Date().toISOString(),
+        ...activity
+      });
+      return { success: true, message: 'Actividad registrada correctamente' };
     } catch (e) {
-      console.error('Error loading activities:', e);
-      activities.value = [];
+      console.error("Error adding activity:", e);
+      return { success: false, message: 'Error al guardar en Firebase' };
     }
-    loaded.value = true;
   };
 
-  const addActivity = (activity) => {
-    const newActivity = {
-      id: crypto.randomUUID(),
-      timestamp: activity.timestamp || new Date().toISOString(),
-      ...activity
-    };
-    
-    activities.value.unshift(newActivity);
-    saveToStorage();
-    
-    return { success: true, message: 'Actividad registrada correctamente' };
-  };
-
-  const updateActivity = (id, updates) => {
-    const index = activities.value.findIndex(a => a.id === id);
-    if (index !== -1) {
-      const updatedActivity = { ...activities.value[index], ...updates };
-      // New array assignment for reactivity
-      activities.value = [
-        ...activities.value.slice(0, index),
-        updatedActivity,
-        ...activities.value.slice(index + 1)
-      ];
-      saveToStorage();
+  const updateActivity = async (id, updates) => {
+    try {
+      const activityRef = dbRef(db, `activities/${id}`);
+      await update(activityRef, updates);
       return { success: true, message: 'Actividad actualizada' };
+    } catch (e) {
+      console.error("Error updating activity:", e);
+      return { success: false, message: 'Error al actualizar' };
     }
-    return { success: false, message: 'Actividad no encontrada' };
   };
 
-  const deleteActivity = (id) => {
-      const initialLength = activities.value.length;
-      activities.value = activities.value.filter(a => a.id !== id);
-      
-      if (activities.value.length < initialLength) {
-          saveToStorage();
-          return { success: true, message: 'Eliminado correctamente' };
-      }
-      return { success: false, message: 'No se pudo eliminar (ID no encontrado)' };
+  const deleteActivity = async (id) => {
+    try {
+      const activityRef = dbRef(db, `activities/${id}`);
+      await remove(activityRef);
+      return { success: true, message: 'Eliminado correctamente' };
+    } catch (e) {
+      console.error("Error deleting activity:", e);
+      return { success: false, message: 'Error al eliminar' };
+    }
   };
 
   const getActivitiesByDate = (dateString) => {

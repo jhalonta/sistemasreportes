@@ -5,19 +5,11 @@ import { useActivities } from './useActivities';
 
 export function useReports() {
   const { activities } = useActivities();
+  const { records: attendanceRecords } = useAttendance();
   
-  // We need to access attendance records directly. 
-  // Since useAttendance exposes methods but not the raw ref securely for external use easily without refactoring,
-  // we will grab them from localStorage directly for the report to ensure fresh data.
-  const getAttendanceRecords = () => {
-      const saved = localStorage.getItem('attendance_records');
-      return saved ? JSON.parse(saved) : {};
-  };
-
   const generateDailyReport = (dateString) => {
     // dateString: YYYY-MM-DD
-    const attendanceData = getAttendanceRecords();
-    const dayRecords = attendanceData[dateString] || {};
+    const dayRecords = attendanceRecords.value[dateString] || {};
     
     // Filter activities for this day
     const dayActivities = activities.value.filter(a => a.timestamp.startsWith(dateString));
@@ -51,8 +43,8 @@ export function useReports() {
         name: person.name,
         dni: person.dni,
         role: person.role,
-        checkIn: attendance ? '08:00' : '',
-        checkOut: attendance ? '18:00' : '', 
+        checkIn: attendance ? attendance.checkIn : '', // Use actual checkIn time from record
+        checkOut: attendance ? '18:00' : '', // This might need a real field later
         activity: activityDesc,
         activitiesList: activityDetails,
         signature: '' // Placeholder for print

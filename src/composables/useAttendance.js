@@ -1,6 +1,6 @@
-import { ref, computed, watchEffect } from 'vue';
-
-const STORAGE_KEY = 'attendance_records';
+import { ref, computed } from 'vue';
+import { db } from '../firebase';
+import { ref as dbRef, onValue, set } from 'firebase/database';
 
 export function useAttendance() {
   const currentTime = ref(new Date());
@@ -11,29 +11,8 @@ export function useAttendance() {
   }, 1000);
 
   const isWithinSchedule = computed(() => {
-    const now = currentTime.value;
-    const day = now.getDay(); // 0 is Sunday, 1 is Monday, etc.
-    const hour = now.getHours();
-    
     // FOR TESTING: Always return true
     return true; 
-
-    /*
-    // Check if Sunday (0)
-    if (day === 0) return false;
-
-    // Monday to Friday (1-5)
-    if (day >= 1 && day <= 5) {
-      return hour >= 8 && hour < 19; // 8:00 to 18:59 (allows up to 19:00)
-    }
-
-    // Saturday (6)
-    if (day === 6) {
-      return hour >= 8 && hour < 13; // 8:00 to 12:59
-    }
-
-    return false;
-    */
   });
 
   const getTodayDateString = () => {
@@ -41,18 +20,25 @@ export function useAttendance() {
   };
 
   const records = ref({});
+  const loaded = ref(false);
 
-  // Load initial data
+  // Load real-time data from Firebase
   const loadRecords = () => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      records.value = JSON.parse(saved);
-    }
+    if (loaded.value) return;
+
+    const attendanceRef = dbRef(db, 'attendance');
+    onValue(attendanceRef, (snapshot) => {
+      const data = snapshot.val();
+      records.value = data || {};
+      loaded.value = true;
+    }, (error) => {
+      console.error("Error reading attendance:", error);
+    });
   };
 
   // Save changes
-  const checkIn = (personId, date = null) => {
-    // Only check schedule if it's TODAY
+  const checkIn = async (personId, date = null) => {
+    // Check schedule if it's TODAY
     const targetDate = date || getTodayDateString();
     const isToday = targetDate === getTodayDateString();
 
@@ -60,24 +46,26 @@ export function useAttendance() {
         return { success: false, message: 'Fuera de horario laboral' };
     }
 
-    if (!records.value[targetDate]) {
-        records.value[targetDate] = {};
-    }
-
-    if (records.value[targetDate][personId]) {
+    if (records.value[targetDate] && records.value[targetDate][personId]) {
         return { success: false, message: 'Ya tiene asistencia marcada en esa fecha' };
     }
 
     // Use current time if today, else default to 08:00:00 for past dates
-    const timestamp = isToday ? new Date().toLocaleTimeString() : '08:00:00';
+    const timestamp = isToday ? new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '08:00:00';
     
-    records.value[targetDate][personId] = { 
+    const record = { 
         checkIn: timestamp,
         status: 'Presente'
     };
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records.value));
-    return { success: true, message: `Asistencia marcada (${targetDate})` };
+    try {
+        const recordRef = dbRef(db, `attendance/${targetDate}/${personId}`);
+        await set(recordRef, record);
+        return { success: true, message: `Asistencia marcada (${targetDate})` };
+    } catch (e) {
+        console.error("Error saving attendance:", e);
+        return { success: false, message: 'Error al guardar en Firebase' };
+    }
   };
 
   const getStatus = (personId, date = null) => {
@@ -94,6 +82,7 @@ export function useAttendance() {
     currentTime,
     isWithinSchedule,
     checkIn,
-    getStatus
+    getStatus,
+    records // Export records so useReports can use it
   };
 }

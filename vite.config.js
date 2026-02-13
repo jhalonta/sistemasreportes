@@ -8,7 +8,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 export default defineConfig({
   plugins: [
     vue(),
-    vueDevTools(),
+    // vueDevTools(), // Deshabilitado para ocultar el overlay en impresión
   ],
   resolve: {
     alias: {

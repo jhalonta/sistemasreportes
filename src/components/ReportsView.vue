@@ -31,33 +31,55 @@ const formattedDateHeader = computed(() => {
 });
 
 // Chart Data Logic
+// Chart Data Logic
+import { useActivities } from '../composables/useActivities';
+import { personnel } from '../data/personnel';
+
+const { activities } = useActivities();
+
 const chartData = computed(() => {
-  const data = reportData.value;
+  // Filter activities for the selected date
+  // We use the raw activities store instead of reportData to avoid per-person duplication
+  if (!selectedDate.value) return { labels: [], datasets: [] };
+  
+  const dayActivities = activities.value.filter(a => a.timestamp.startsWith(selectedDate.value));
+  
+  // Group activities by "Squad" (Main Tech + Partner)
   const squads = {};
 
-  data.forEach(row => {
-    // Only process rows that have activities (production)
-    const totalRealized = row.activitiesList.reduce((sum, act) => sum + (parseFloat(act.realizedValue) || 0), 0);
-    
-    if (totalRealized > 0) {
-        // Group by Name (Assuming name is unique enough for this view, or we could use ID)
-        // Since the report is already per person, and partners are listed in the activity description or logic?
-        // Wait, the report currently lists EACH ADMISSION. 
-        // If it's a squad (Main + Partner), the report logic puts the record under the Main tech?
-        // Let's look at `generateDailyReport` output. It returns a flat list of personnel with their activities.
-        // If Main Tech A worked with Partner B, the activity is logged under Main Tech A? 
-        // Logic check: Activities store `mainTechId` and `partnerTechId`.
-        // `generateDailyReport` likely maps personnel to their activities where they are Main.
-        
-        // We will graph by "row.name" (Main Tech) and label it with Partner if possible, 
-        // but row.name is just the person.
-        
-        squads[row.name] = (squads[row.name] || 0) + totalRealized;
-    }
+  dayActivities.forEach(act => {
+      const realized = parseFloat(act.realizedValue) || 0;
+      if (realized > 0) {
+          // Create a unique key for the squad
+          const mainId = act.mainTechId;
+          const partnerId = act.partnerTechId;
+          const key = partnerId ? `${mainId}|${partnerId}` : `${mainId}`;
+
+          if (!squads[key]) {
+              squads[key] = {
+                  total: 0,
+                  mainId: mainId,
+                  partnerId: partnerId
+              };
+          }
+          squads[key].total += realized;
+      }
   });
 
-  const labels = Object.keys(squads);
-  const values = Object.values(squads);
+  const labels = Object.values(squads).map(squad => {
+      const main = personnel.find(p => p.id === squad.mainId)?.name || 'Desconocido';
+      const partner = squad.partnerId ? personnel.find(p => p.id === squad.partnerId)?.name : null;
+      
+      if (partner) {
+          // Shorten names for better chart readability if needed, or keep full
+          // Let's try to just use First Name Last Name if possible, or full name
+          // For now full name, joined by "&"
+          return `${main} & ${partner}`;
+      }
+      return main;
+  });
+
+  const values = Object.values(squads).map(s => s.total);
 
   return {
     labels,
@@ -65,7 +87,9 @@ const chartData = computed(() => {
       {
         label: 'Producción Realizada (S/.)',
         backgroundColor: '#4f46e5',
-        data: values
+        data: values,
+        barPercentage: 0.9,
+        categoryPercentage: 0.9
       }
     ]
   };
@@ -358,6 +382,20 @@ input[type="date"] {
   /* Hide everything that's not the print sheet */
   .no-print, .main-nav, .app-layout > *:not(.content-area) {
     display: none !important;
+  }
+  
+  /* OVERRIDE: Hide Vue DevTools and persistent overlays */
+  body > div:not(#app),
+  iframe[src*="vite-plugin-vue-devtools"],
+  .vue-devtools__anchor,
+  [id*="vite-plugin-vue-devtools"],
+  [class*="vue-devtools"],
+  [aria-label="Vue DevTools"],
+  #vue-devtools-anchor {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
   }
   
   /* Ensure print sheet takes full width without margins/shadows */
