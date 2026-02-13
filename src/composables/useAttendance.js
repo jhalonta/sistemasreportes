@@ -43,11 +43,12 @@ export function useAttendance() {
     const isToday = targetDate === getTodayDateString();
 
     if (isToday && !isWithinSchedule.value) {
+        console.warn("CheckIn blocked: Outside schedule");
         return { success: false, message: 'Fuera de horario laboral' };
     }
 
     if (records.value[targetDate] && records.value[targetDate][personId]) {
-        return { success: false, message: 'Ya tiene asistencia marcada en esa fecha' };
+        return { success: false, message: 'Ya tiene asistencia marcada' };
     }
 
     // Use current time if today, else default to 08:00:00 for past dates
@@ -61,11 +62,23 @@ export function useAttendance() {
     try {
         const recordRef = dbRef(db, `attendance/${targetDate}/${personId}`);
         await set(recordRef, record);
-        return { success: true, message: `Asistencia marcada (${targetDate})` };
+        return { success: true, message: 'Asistencia registrada correctamente' };
     } catch (e) {
-        console.error("Error saving attendance:", e);
-        return { success: false, message: 'Error al guardar en Firebase' };
+        console.error("Firebase Error in checkIn:", e);
+        return { success: false, message: 'Error al guardar: ' + e.message };
     }
+  };
+
+  const removeCheckIn = async (personId, date = null) => {
+      const targetDate = date || getTodayDateString();
+      try {
+          const recordRef = dbRef(db, `attendance/${targetDate}/${personId}`);
+          await set(recordRef, null); // Delete by setting to null
+          return { success: true, message: 'Asistencia eliminada correctamente' };
+      } catch (e) {
+          console.error("Firebase Error in removeCheckIn:", e);
+          return { success: false, message: 'Error al eliminar: ' + e.message };
+      }
   };
 
   const getStatus = (personId, date = null) => {
@@ -82,6 +95,7 @@ export function useAttendance() {
     currentTime,
     isWithinSchedule,
     checkIn,
+    removeCheckIn,
     getStatus,
     records // Export records so useReports can use it
   };

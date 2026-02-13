@@ -38,12 +38,25 @@ export function useReports() {
         }).join('; ') 
         : '';
 
+      // Format checkIn to HH:MM (remove seconds if present)
+      let formattedCheckIn = '';
+      if (attendance && attendance.checkIn) {
+          // Assuming format is HH:MM:SS or H:MM:SS or similar
+          // split by ':' and take first two parts
+          const parts = attendance.checkIn.split(':');
+          if (parts.length >= 2) {
+              formattedCheckIn = `${parts[0]}:${parts[1]}`;
+          } else {
+              formattedCheckIn = attendance.checkIn;
+          }
+      }
+
       return {
         item: index + 1,
         name: person.name,
         dni: person.dni,
         role: person.role,
-        checkIn: attendance ? attendance.checkIn : '', // Use actual checkIn time from record
+        checkIn: formattedCheckIn, 
         checkOut: attendance ? '18:00' : '', // This might need a real field later
         activity: activityDesc,
         activitiesList: activityDetails,

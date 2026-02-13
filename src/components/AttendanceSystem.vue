@@ -6,7 +6,7 @@ import { useNotifications } from '../composables/useNotifications';
 import { useGlobalStore } from '../stores/global';
 import { storeToRefs } from 'pinia';
 
-const { currentTime, isWithinSchedule, checkIn, getStatus } = useAttendance();
+const { currentTime, isWithinSchedule, checkIn, removeCheckIn, getStatus } = useAttendance();
 const { showNotification } = useNotifications();
 
 const globalStore = useGlobalStore();
@@ -25,8 +25,18 @@ const formattedDate = computed(() => {
   return currentTime.value.toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 });
 
-const handleCheckIn = (personId) => {
-  const result = checkIn(personId, selectedDate.value);
+const toggleAttendance = async (personId) => {
+  const isRegistered = !!getStatus(personId, selectedDate.value);
+  let result;
+  
+  if (isRegistered) {
+      // Unmark
+      result = await removeCheckIn(personId, selectedDate.value);
+  } else {
+      // Mark checking
+      result = await checkIn(personId, selectedDate.value); 
+  }
+
   showNotification(result.message, result.success ? 'success' : 'error');
 };
 </script>
@@ -88,11 +98,12 @@ const handleCheckIn = (personId) => {
               </td>
               <td>
                 <button 
-                  @click="handleCheckIn(person.id)" 
-                  :disabled="(isToday && !isWithinSchedule) || getStatus(person.id, selectedDate)"
+                  @click="toggleAttendance(person.id)" 
+                  :disabled="isToday && !isWithinSchedule"
                   class="btn-checkin"
+                  :class="{ 'btn-danger': getStatus(person.id, selectedDate) }"
                 >
-                  {{ getStatus(person.id, selectedDate) ? 'Registrado' : 'Marcar' }}
+                  {{ getStatus(person.id, selectedDate) ? 'Desmarcar' : 'Marcar' }}
                 </button>
               </td>
             </tr>
@@ -139,6 +150,7 @@ const handleCheckIn = (personId) => {
   font-weight: 700;
   margin: 0;
   background: var(--primary-gradient);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-transform: uppercase;
@@ -365,6 +377,16 @@ td {
 .btn-checkin:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+}
+
+/* Red button for 'Desmarcar' */
+.btn-checkin.btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+}
+
+.btn-checkin.btn-danger:hover:not(:disabled) {
+    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.4);
 }
 
 .btn-checkin:disabled {
