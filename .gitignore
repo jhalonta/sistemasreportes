@@ -36,4 +36,14 @@ coverage
 __screenshots__/
 
 # Vite
-*.timestamp-*-*.mjs\n\n# Backend\nbackend/venv/\nbackend/__pycache__/\nbackend/*.pyc\n\n# Secrets\nbackend/serviceAccountKey.json\n.env\npush_output.txt
+*.timestamp-*-*.mjs
+
+# Backend
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+
+# Secrets
+backend/serviceAccountKey.json
+.env
+push_output.txt
