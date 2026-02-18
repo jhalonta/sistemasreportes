@@ -49,7 +49,7 @@ const currentTab = ref('attendance'); // 'attendance', 'activities', 'reports'
   flex-direction: column;
   gap: 2rem;
   width: 100%;
-  max-width: 1200px; /* Limit width */
+  max-width: 98vw; /* Almost full width as requested */
   margin: 0 auto; /* Center horizontally */
   padding: 1rem;
   min-height: 100vh;

@@ -1,7 +1,7 @@
 <script setup>
 import { useNotifications } from '../composables/useNotifications';
 
-const { notifications } = useNotifications();
+const { notifications, removeNotification: remove } = useNotifications();
 </script>
 
 <template>

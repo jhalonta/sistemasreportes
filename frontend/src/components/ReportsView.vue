@@ -17,7 +17,7 @@ import { Bar } from 'vue-chartjs';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const { generateDailyReport } = useReports();
+const { generateDailyReport, generateExcelReport } = useReports();
 
 const globalStore = useGlobalStore();
 const { selectedDate } = storeToRefs(globalStore);
@@ -49,7 +49,10 @@ const chartData = computed(() => {
 
   dayActivities.forEach(act => {
       const realized = parseFloat(act.realizedValue) || 0;
-      if (realized > 0) {
+      const assigned = parseFloat(act.projectedValue) || 0;
+      
+      // Included if either is > 0
+      if (realized > 0 || assigned > 0) {
           // Create a unique key for the squad
           const mainId = act.mainTechId;
           const partnerId = act.partnerTechId;
@@ -57,39 +60,52 @@ const chartData = computed(() => {
 
           if (!squads[key]) {
               squads[key] = {
-                  total: 0,
+                  realized: 0,
+                  assigned: 0,
                   mainId: mainId,
                   partnerId: partnerId
               };
           }
-          squads[key].total += realized;
+          squads[key].realized += realized;
+          squads[key].assigned += assigned;
       }
   });
 
   const labels = Object.values(squads).map(squad => {
       const main = personnel.find(p => p.id === squad.mainId)?.name || 'Desconocido';
+      // Try to use shorter name: First Last
+      const shortName = (fullName) => {
+          const parts = fullName.split(' ');
+          return parts.length > 2 ? `${parts[0]} ${parts[2] || parts[1]}` : fullName;
+      };
+
       const partner = squad.partnerId ? personnel.find(p => p.id === squad.partnerId)?.name : null;
       
       if (partner) {
-          // Shorten names for better chart readability if needed, or keep full
-          // Let's try to just use First Name Last Name if possible, or full name
-          // For now full name, joined by "&"
-          return `${main} & ${partner}`;
+          return `${shortName(main)} & ${shortName(partner)}`;
       }
-      return main;
+      return shortName(main);
   });
 
-  const values = Object.values(squads).map(s => s.total);
+  const realizedValues = Object.values(squads).map(s => s.realized);
+  const assignedValues = Object.values(squads).map(s => s.assigned);
 
   return {
     labels,
     datasets: [
       {
-        label: 'Producción Realizada (S/.)',
-        backgroundColor: '#4f46e5',
-        data: values,
-        barPercentage: 0.9,
-        categoryPercentage: 0.9
+        label: 'Meta (Asignada)',
+        backgroundColor: '#cbd5e1', // Grey for target
+        data: assignedValues,
+        barPercentage: 0.7,
+        categoryPercentage: 0.8
+      },
+      {
+        label: 'Realizada (Ejecutada)',
+        backgroundColor: '#4f46e5', // Indigo for actual
+        data: realizedValues,
+        barPercentage: 0.7,
+        categoryPercentage: 0.8
       }
     ]
   };
@@ -99,8 +115,21 @@ const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { display: false },
-    title: { display: true, text: 'Producción por Técnico/Cuadrilla (S/.)' }
+    legend: { display: true, position: 'top' }, // Show legend now
+    title: { display: true, text: 'Producción: Asignada vs Realizada (S/.)', font: { size: 16 } }
+  },
+  scales: {
+      x: {
+          ticks: {
+              autoSkip: false,
+              maxRotation: 45,
+              minRotation: 45,
+              font: { size: 11 }
+          }
+      },
+      y: {
+          beginAtZero: true
+      }
   }
 };
 
@@ -118,6 +147,12 @@ const printReport = () => {
         <label>Fecha del Reporte:</label>
         <input type="date" v-model="selectedDate" />
         <button @click="printReport" class="btn-print">Imprimir / Guardar PDF</button>
+      </div>
+      
+      <div class="control-group excel-group">
+          <button @click="generateExcelReport('Diario', selectedDate)" class="btn-excel">📊 Excel Diario</button>
+          <button @click="generateExcelReport('Semanal', selectedDate)" class="btn-excel">📅 Excel Semanal</button>
+          <button @click="generateExcelReport('Mensual', selectedDate)" class="btn-excel">📆 Excel Mensual</button>
       </div>
     </div>
 
@@ -137,7 +172,7 @@ const printReport = () => {
     <!-- Printable Area (Hidden on Screen) -->
     <div class="print-sheet screen-hidden">
       <header class="report-header">
-        <h1 class="company-name">CONSORCIO GALCAS INGENIEROS</h1>
+        <h1 class="company-name">CONSORCIO <span class="blue-text">GALCAS</span> INGENIEROS</h1>
         <div class="company-info">
           <p><strong>RUC:</strong> 20612913766</p>
           <p><strong>DIRECCIÓN:</strong> AV. SALAVERRY N° 2415 INT. 202 - SAN ISIDRO - LIMA</p>
@@ -215,6 +250,7 @@ const printReport = () => {
   gap: 2rem;
   font-family: Arial, sans-serif;
   color: #000;
+  width: 100%;
 }
 
 .controls {
@@ -223,7 +259,7 @@ const printReport = () => {
   flex-direction: column;
   gap: 1rem;
   width: 100%;
-  max-width: 600px;
+  max-width: 800px;
 }
 
 .control-group {
@@ -259,15 +295,21 @@ input[type="date"] {
   backdrop-filter: blur(10px);
 }
 
+.dashboard-view {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
 .chart-container {
     width: 100%;
-    max-width: 800px;
+    max-width: 100%; /* Full width */
     padding: 2rem;
     margin: 0 auto;
 }
 
 .canvas-wrapper {
-    height: 400px;
+    height: 600px; /* Taller chart */
     position: relative;
 }
 
@@ -293,6 +335,7 @@ input[type="date"] {
   margin-bottom: 2rem;
 }
 
+
 /* Header Styles */
 .company-name {
   color: #009e60; /* Greenish matching logo */
@@ -301,6 +344,11 @@ input[type="date"] {
   text-align: center;
   margin: 0;
   text-transform: uppercase;
+}
+
+.blue-text {
+  color: #1e3a8a;
+  font-weight: 900;
 }
 
 .company-info {
@@ -369,7 +417,7 @@ input[type="date"] {
 @media print {
   @page {
     size: landscape;
-    margin: 10mm;
+    margin: 1cm;
   }
 
   body {
@@ -412,7 +460,7 @@ input[type="date"] {
     height: auto;
     box-shadow: none;
     margin: 0;
-    padding: 0;
+    padding: 0; /* Constraints already handled by body padding */
   }
 
   .screen-hidden {
@@ -423,5 +471,28 @@ input[type="date"] {
   nav, button {
       display: none !important;
   }
+}
+
+.excel-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-excel {
+    background: #10b981;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background 0.2s;
+}
+
+.btn-excel:hover {
+    background: #059669;
 }
 </style>

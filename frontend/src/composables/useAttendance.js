@@ -103,7 +103,7 @@ export function useAttendance() {
   };
 
   const markAll = async (personnelList, date = null) => {
-      const targetDate = date || getTodayDateString();
+      let targetDate = date || getTodayDateString();
       const updates = {};
       let count = 0;
       
