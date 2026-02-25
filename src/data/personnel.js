@@ -10,5 +10,6 @@ export const personnel = [
   { id: 'P078', dni: '48148909', name: 'GUDIER BERRU VASQUEZ', role: 'Personal de Apoyo' },
   { id: 'P079', dni: '75406284', name: 'CRISTIAN JHORVIN TERRONES RAMIREZ', role: 'Personal de Apoyo' },
   { id: 'P080', dni: '71019863', name: 'JACKSON DEYVI JIMENEZ RODRIGUEZ', role: 'Personal de Apoyo' },
-  { id: 'P081', dni: '47061319', name: 'ALEX VILELA ARAUJO', role: 'Personal de Apoyo' }
+  { id: 'P081', dni: '47061319', name: 'ALEX VILELA ARAUJO', role: 'Personal de Apoyo' },
+  { id: 'P082', dni: '', name: 'YORK CLINTON PEREZ CARRASCO', role: 'Personal de Apoyo' }
 ];
