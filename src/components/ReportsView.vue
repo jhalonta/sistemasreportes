@@ -394,7 +394,7 @@ const printMonthlyReports = () => {
   align-items: center;
   gap: 2rem;
   font-family: Arial, sans-serif;
-  color: #000;
+  color: var(--text-main);
   width: 100%;
 }
 
@@ -416,8 +416,10 @@ const printMonthlyReports = () => {
 
 input[type="date"] {
     padding: 0.5rem;
-    border-radius: 4px;
-    border: 1px solid #ccc;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-2);
+    background: var(--bg-input);
+    color: var(--text-main);
 }
 
 .actions-group {
@@ -425,20 +427,20 @@ input[type="date"] {
     flex-wrap: wrap;
     gap: 1rem;
     justify-content: center;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--border-2);
     padding-bottom: 1rem;
 }
 
 .btn-print {
-    background: #4ade80;
-    color: #14532d;
+    background: var(--accent-gradient);
+    color: var(--text-on-brand);
     padding: 0.6rem 1.25rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     border: none;
     font-weight: bold;
     cursor: pointer;
-    box-shadow: 0 4px 6px -1px rgba(74, 222, 128, 0.3);
-    transition: all 0.2s;
+    box-shadow: 0 4px 6px rgba(16,185,129,0.3);
+    transition: var(--tr);
 }
 
 .btn-print:hover:not(:disabled) {
@@ -447,9 +449,9 @@ input[type="date"] {
 }
 
 .btn-print-monthly {
-    background: #3b82f6;
-    color: white;
-    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+    background: var(--primary-gradient);
+    color: var(--text-on-brand);
+    box-shadow: 0 4px 6px rgba(99,102,241,0.3);
 }
 
 .btn-print-monthly:hover:not(:disabled) {
@@ -465,10 +467,10 @@ input[type="date"] {
 
 /* Glass panel for controls only */
 .glass-panel {
-  background: rgba(255,255,255,0.7);
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  backdrop-filter: blur(10px);
+  background: var(--glass-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(12px);
 }
 
 .dashboard-view {

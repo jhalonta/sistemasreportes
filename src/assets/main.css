@@ -1,51 +1,169 @@
 @import './base.css';
 
+/* ═══════════════════════════════════════════════════════════════
+   GALCAS DESIGN SYSTEM — Unified Color Tokens
+   Primary: Indigo/Violet  |  Accent: Emerald  |  Neutral: Slate
+═══════════════════════════════════════════════════════════════ */
 :root {
+  /* Brand */
+  --brand-primary:   #6366f1;
+  --brand-primary-h: #4f46e5;
+  --brand-secondary: #8b5cf6;
+  --brand-accent:    #10b981;
+  --brand-accent-h:  #059669;
+
+  /* Backgrounds */
+  --bg-page:    #f4f6fb;
+  --bg-card:    rgba(255, 255, 255, 0.97);
+  --bg-card-2:  rgba(248, 250, 252, 0.97);
+  --bg-input:   #ffffff;
+
+  /* Glass effect */
+  --glass-bg:     rgba(255, 255, 255, 0.94);
+  --glass-border: transparent;
+  --glass-shadow: 0 4px 24px rgba(99, 102, 241, 0.08), 0 1px 4px rgba(0,0,0,0.04);
+
+  /* Borders */
+  --border:     transparent;
+  --border-2:   #edf0f7;
+
+  /* Text */
+  --text-main:    #1e293b;
+  --text-sub:     #475569;
+  --text-muted:   #94a3b8;
+  --text-on-brand: #ffffff;
+
+  /* Semantic */
+  --success:    #10b981;
+  --success-bg: rgba(16, 185, 129, 0.12);
+  --success-fg: #065f46;
+  --danger:     #ef4444;
+  --danger-bg:  rgba(239, 68, 68, 0.12);
+  --danger-fg:  #991b1b;
+  --warning:    #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.12);
+  --warning-fg: #92400e;
+  --info:       #6366f1;
+  --info-bg:    rgba(99, 102, 241, 0.12);
+  --info-fg:    #3730a3;
+
+  /* Nav */
+  --nav-bg:        rgba(255, 255, 255, 0.75);
+  --nav-active-bg: white;
+  --nav-active-fg: #6366f1;
+
+  /* Gradients */
   --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --glass-bg: rgba(255, 255, 255, 0.9);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-  
-  --text-main: #1e293b;
-  --text-muted: #64748b;
-  
-  --success-bg: #d1fae5;
-  --danger-bg: #fee2e2;
+  --accent-gradient:  linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --card-gradient-1:  linear-gradient(135deg, #ede9fe, #ddd6fe);
+  --card-gradient-2:  linear-gradient(135deg, #d1fae5, #a7f3d0);
+  --card-gradient-3:  linear-gradient(135deg, #fee2e2, #fecaca);
+  --card-gradient-4:  linear-gradient(135deg, #fef3c7, #fde68a);
+
+  /* Skeleton */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  /* Transitions */
+  --tr: all 0.25s ease;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --glass-bg: rgba(30, 41, 59, 0.8);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    
-    --success-bg: #064e3b;
-    --danger-bg: #7f1d1d;
-    
+/* ── DARK MODE — controlled via JS toggle (data-theme="dark" on <html>) ── */
+[data-theme="dark"] {
+    /* Backgrounds */
+    --bg-page:    #0f172a;
+    --bg-card:    rgba(30, 41, 59, 0.95);
+    --bg-card-2:  rgba(15, 23, 42, 0.90);
+    --bg-input:   #1e293b;
+
+    /* Glass */
+    --glass-bg:     rgba(30, 41, 59, 0.88);
+    --glass-border: rgba(255, 255, 255, 0.10);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+    /* Borders */
+    --border:   rgba(148, 163, 184, 0.15);
+    --border-2: rgba(255, 255, 255, 0.10);
+
+    /* Text */
+    --text-main:  #f1f5f9;
+    --text-sub:   #cbd5e1;
+    --text-muted: #64748b;
+
+    /* Semantic */
+    --success-bg: rgba(16, 185, 129, 0.20);
+    --success-fg: #6ee7b7;
+    --danger-bg:  rgba(239, 68, 68, 0.20);
+    --danger-fg:  #fca5a5;
+    --warning-bg: rgba(245, 158, 11, 0.20);
+    --warning-fg: #fcd34d;
+    --info-bg:    rgba(99, 102, 241, 0.20);
+    --info-fg:    #a5b4fc;
+
+    /* Nav */
+    --nav-bg:        rgba(15, 23, 42, 0.75);
+    --nav-active-bg: rgba(99, 102, 241, 0.25);
+    --nav-active-fg: #a5b4fc;
+
+    /* Gradients — translucent for dark */
+    --card-gradient-1: linear-gradient(135deg, rgba(99,102,241,.22), rgba(124,58,237,.18));
+    --card-gradient-2: linear-gradient(135deg, rgba(16,185,129,.22), rgba(5,150,105,.18));
+    --card-gradient-3: linear-gradient(135deg, rgba(239,68,68,.22), rgba(220,38,38,.18));
+    --card-gradient-4: linear-gradient(135deg, rgba(245,158,11,.22), rgba(217,119,6,.18));
+
+    /* Brand on dark */
+    --brand-primary:   #818cf8;
+    --brand-secondary: #a78bfa;
+    --brand-accent:    #34d399;
     --primary-gradient: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%);
-  }
+}
+
+/* ── GLOBAL RESET / BASE ────────────────────────────────────────── */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--bg-page);
+  color: var(--text-main);
+  transition: background 0.4s, color 0.4s;
 }
 
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+  width: 100%;
   font-weight: normal;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+/* Shared utility classes used across all components */
+.glass-panel {
+  background: var(--glass-bg) !important;
+  box-shadow: var(--glass-shadow) !important;
+  border-radius: var(--radius-xl) !important;
+  color: var(--text-main) !important;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+.btn-primary {
+  background: var(--primary-gradient);
+  color: var(--text-on-brand);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.55rem 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--tr);
+  box-shadow: 0 4px 12px rgba(99,102,241,0.3);
 }
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
 
+.btn-success {
+  background: var(--accent-gradient);
+  color: var(--text-on-brand);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.55rem 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--tr);
+}
+.btn-success:hover { opacity: 0.9; transform: translateY(-1px); }

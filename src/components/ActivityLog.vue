@@ -461,17 +461,16 @@ const handleSubmit = () => {
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  color: #334155;
+  color: var(--text-main);
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--glass-bg);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border-radius: 24px;
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-xl);
   padding: 2.5rem;
-  transition: transform 0.3s ease;
+  transition: var(--tr);
 }
 
 .panel-header {
@@ -479,7 +478,7 @@ const handleSubmit = () => {
     justify-content: space-between;
     align-items: baseline;
     margin-bottom: 2rem;
-    border-bottom: 2px solid #f1f5f9;
+    border-bottom: 2px solid var(--border-2);
     padding-bottom: 1rem;
 }
 
@@ -497,17 +496,17 @@ const handleSubmit = () => {
 
 .date-input-small {
     padding: 0.25rem 0.5rem;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border-2);
     border-radius: 6px;
     font-size: 0.9rem;
-    color: #334155;
-    background: white;
+    color: var(--text-main);
+    background: var(--bg-input);
 }
 
 .mode-badge {
     font-size: 0.75rem;
-    background: #fef3c7;
-    color: #d97706;
+    background: var(--warning-bg);
+    color: var(--warning-fg);
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
     font-weight: 700;
@@ -525,9 +524,9 @@ const handleSubmit = () => {
 
 .close-time {
     font-size: 0.9rem;
-    color: #64748b;
+    color: var(--text-muted);
     font-weight: 600;
-    background: #f1f5f9;
+    background: var(--info-bg);
     padding: 0.25rem 0.75rem;
     border-radius: 99px;
 }
