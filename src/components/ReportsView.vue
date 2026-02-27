@@ -3,6 +3,8 @@ import { ref, computed } from 'vue';
 import { useReports } from '../composables/useReports';
 import { useGlobalStore } from '../stores/global';
 import { storeToRefs } from 'pinia';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import {
   Chart as ChartJS,
@@ -17,10 +19,13 @@ import { Bar } from 'vue-chartjs';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const { generateDailyReport, generateExcelReport } = useReports();
+const { generateDailyReport, generateMonthlyDailyReports, generateExcelReport } = useReports();
 
 const globalStore = useGlobalStore();
 const { selectedDate } = storeToRefs(globalStore);
+
+const printMode = ref(null); // kept for v-if template compatibility
+const isGeneratingPdf = ref(false);
 
 const reportData = computed(() => generateDailyReport(selectedDate.value));
 
@@ -29,6 +34,12 @@ const formattedDateHeader = computed(() => {
     const date = new Date(selectedDate.value + 'T00:00:00'); // Fix TZ issue
     return date.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase();
 });
+
+const formatHeaderDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase();
+};
 
 // Chart Data Logic
 // Chart Data Logic
@@ -133,8 +144,203 @@ const chartOptions = {
   }
 };
 
-const printReport = () => {
-  window.print();
+// --- jsPDF Direct Download ---
+
+const buildPdfForDays = (dayReports, filename) => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+    dayReports.forEach((report, idx) => {
+        if (idx > 0) doc.addPage();
+
+        const formattedDate = new Date(report.date + 'T00:00:00').toLocaleDateString('es-PE', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        }).toUpperCase();
+
+        // ---- Header ----
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let y = 14;
+
+        // ---- Company Name (large, like the original) ----
+        doc.setFontSize(26);
+        doc.setFont('helvetica', 'bold');
+
+        const title1 = 'CONSORCIO ';
+        const title2 = 'GALCAS';
+        const title3 = ' INGENIEROS';
+        const totalW = doc.getTextWidth(title1 + title2 + title3);
+        let tx = (pageWidth - totalW) / 2;
+
+        doc.setTextColor(0, 158, 96);   // green
+        doc.text(title1, tx, y);
+        tx += doc.getTextWidth(title1);
+
+        doc.setTextColor(41, 98, 200);  // lighter blue
+        doc.text(title2, tx, y);
+        tx += doc.getTextWidth(title2);
+
+        // --- Yellow 4-pointed compass star between GALCAS and INGENIEROS ---
+        const starCx = tx + 7;  // horizontal center: more space after GALCAS
+        const starCy = y - 4;     // vertical center: align with text cap height
+        const starR  = 3.5;       // outer radius (mm)
+        const starR2 = starR * 0.28; // inner radius (sharp points)
+
+        const starPts = [];
+        for (let i = 0; i < 8; i++) {
+            const angle = (i * 45 - 90) * (Math.PI / 180);
+            const r = (i % 2 === 0) ? starR : starR2;
+            starPts.push([starCx + r * Math.cos(angle), starCy + r * Math.sin(angle)]);
+        }
+        const starLines = starPts.slice(1).map((pt, idx) => [
+            pt[0] - starPts[idx][0],
+            pt[1] - starPts[idx][1]
+        ]);
+
+        doc.setFillColor(255, 200, 0);   // bright yellow
+        doc.setDrawColor(255, 180, 0);   // slightly darker yellow border
+        doc.setLineWidth(0.1);
+        doc.lines(starLines, starPts[0][0], starPts[0][1], [1, 1], 'FD', true);
+
+        // Reset draw color and continue with INGENIEROS
+        doc.setDrawColor(0, 0, 0);
+        tx += 14; // more space around the star
+        doc.setTextColor(0, 158, 96);   // green
+        doc.text(title3, tx, y);
+
+
+        // ---- RUC and Address (left side, small) ----
+        y += 5;
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text('RUC: 20612913766', 14, y);
+        y += 4;
+        doc.text('DIRECCIÓN: AV. SALAVERRY N° 2415 INT. 202 - SAN ISIDRO - LIMA', 14, y);
+
+        // ---- Report Title (center) + FECHA (right), same row ----
+        y += 7;
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('REGISTRO DE ASISTENCIA DIARIA DEL PERSONAL OPERATIVO', pageWidth / 2, y, { align: 'center' });
+
+        // underline
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+        const titleW = doc.getTextWidth('REGISTRO DE ASISTENCIA DIARIA DEL PERSONAL OPERATIVO');
+        doc.line((pageWidth - titleW) / 2, y + 0.6, (pageWidth + titleW) / 2, y + 0.6);
+
+        // FECHA on the RIGHT of the same row as the title
+        doc.setFontSize(8);
+        doc.text(`FECHA: ${formattedDate}`, pageWidth - 14, y, { align: 'right' });
+
+        // ---- PERSONAL OPERATIVO ----
+        y += 6;
+        doc.setFontSize(8);
+        doc.text('PERSONAL OPERATIVO:', 14, y);
+
+        y += 4;
+
+
+        // ---- Table ----
+        const rows = report.rows;
+        const tableBody = rows.map(row => [
+            row.item,
+            row.name,
+            row.dni || '',
+            row.role || '',
+            row.checkIn || '',
+            row.checkOut || '',
+            row.activitiesList.map(a => a.description || '').join('\n'),
+            row.activitiesList.map(a => a.assigned || '').join('\n'),
+            row.activitiesList.map(a => a.completed || '').join('\n'),
+            '' // Firma
+        ]);
+
+        autoTable(doc, {
+            startY: y,
+            margin: { left: 14, right: 14 },
+            head: [
+                [
+                    { content: 'ITEM', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'APELLIDOS Y NOMBRES', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'DNI', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'CARGO', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'HORARIO LABORAL', colSpan: 2, styles: { halign: 'center' } },
+                    { content: 'PRODUCCIÓN / ACTIVIDAD', colSpan: 3, styles: { halign: 'center' } },
+                    { content: 'FIRMA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                ],
+                [
+                    { content: 'ING.', styles: { halign: 'center' } },
+                    { content: 'SAL.', styles: { halign: 'center' } },
+                    { content: 'CÓDIGO', styles: { halign: 'center' } },
+                    { content: 'ASIGNADA', styles: { halign: 'center' } },
+                    { content: 'REALIZADA', styles: { halign: 'center' } },
+                ]
+            ],
+            body: tableBody,
+            headStyles: {
+                fillColor: [229, 231, 235],
+                textColor: [0, 0, 0],
+                fontStyle: 'bold',
+                fontSize: 7,
+                lineColor: [0, 0, 0],
+                lineWidth: 0.2,
+            },
+            bodyStyles: {
+                fontSize: 6.5,
+                lineColor: [0, 0, 0],
+                lineWidth: 0.2,
+                valign: 'middle',
+            },
+            columnStyles: {
+                0: { halign: 'center', cellWidth: 8 },   // ITEM
+                1: { halign: 'left',   cellWidth: 65 },  // NOMBRE (ampliado para nombres largos)
+                2: { halign: 'center', cellWidth: 20 },  // DNI
+                3: { halign: 'left',   cellWidth: 30 },  // CARGO
+                4: { halign: 'center', cellWidth: 12 },  // ING
+                5: { halign: 'center', cellWidth: 12 },  // SAL
+                6: { halign: 'center', cellWidth: 28 },  // CODIGO (corto como AC01)
+                7: { halign: 'center', cellWidth: 22 },  // ASIGNADA
+                8: { halign: 'center', cellWidth: 22 },  // REALIZADA
+                9: { halign: 'center', cellWidth: 32 },  // FIRMA (ampliada)
+            },
+            didParseCell: (data) => {
+                // Highlight absent rows in light red
+                const rowData = rows[data.row.index];
+                if (data.section === 'body' && rowData && rowData.checkIn === 'NO ASISTIÓ') {
+                    data.cell.styles.fillColor = [254, 226, 226];
+                }
+            },
+        });
+    });
+
+    doc.save(filename);
+};
+
+const printDailyReport = () => {
+    if (!selectedDate.value) return;
+    isGeneratingPdf.value = true;
+    const rows = generateDailyReport(selectedDate.value);
+    buildPdfForDays([{ date: selectedDate.value, rows }], `Reporte_Diario_${selectedDate.value}.pdf`);
+    isGeneratingPdf.value = false;
+};
+
+const printMonthlyReports = () => {
+    if (!selectedDate.value) return;
+    isGeneratingPdf.value = true;
+    const yearMonth = selectedDate.value.substring(0, 7);
+    const monthlyReports = generateMonthlyDailyReports(yearMonth);
+
+    if (monthlyReports.length === 0) {
+        alert('No hay datos registrados para este mes.');
+        isGeneratingPdf.value = false;
+        return;
+    }
+
+    // generateMonthlyDailyReports returns { date, data } but we need { date, rows }
+    const dayReports = monthlyReports.map(r => ({ date: r.date, rows: r.data }));
+    const [year, month] = selectedDate.value.split('-');
+    buildPdfForDays(dayReports, `Reporte_Mensual_${year}_${month}.pdf`);
+    isGeneratingPdf.value = false;
 };
 
 </script>
@@ -146,7 +352,15 @@ const printReport = () => {
       <div class="control-group">
         <label>Fecha del Reporte:</label>
         <input type="date" v-model="selectedDate" />
-        <button @click="printReport" class="btn-print">Imprimir / Guardar PDF</button>
+      </div>
+      
+      <div class="control-group actions-group">
+          <button @click="printDailyReport" :disabled="isGeneratingPdf" class="btn-print">
+              {{ isGeneratingPdf && printMode === 'daily' ? 'Generando...' : 'Descargar Día (PDF)' }}
+          </button>
+          <button @click="printMonthlyReports" :disabled="isGeneratingPdf" class="btn-print btn-print-monthly">
+               {{ isGeneratingPdf && printMode === 'monthly' ? 'Generando...' : 'Descargar Todo el Mes (PDF)' }}
+          </button>
       </div>
       
       <div class="control-group excel-group">
@@ -169,75 +383,6 @@ const printReport = () => {
         </div>
     </div>
 
-    <!-- Printable Area (Hidden on Screen) -->
-    <div class="print-sheet screen-hidden">
-      <header class="report-header">
-        <h1 class="company-name">CONSORCIO <span class="blue-text">GALCAS</span> INGENIEROS</h1>
-        <div class="company-info">
-          <p><strong>RUC:</strong> 20612913766</p>
-          <p><strong>DIRECCIÓN:</strong> AV. SALAVERRY N° 2415 INT. 202 - SAN ISIDRO - LIMA</p>
-        </div>
-        <h2 class="report-title">REGISTRO DE ASISTENCIA DIARIA DEL PERSONAL OPERATIVO</h2>
-        <div class="report-meta">
-            <span><strong>PERSONAL OPERATIVO:</strong></span>
-            <span class="meta-date"><strong>FECHA:</strong> {{ formattedDateHeader }}</span>
-        </div>
-      </header>
-
-      <table class="report-table">
-        <thead>
-          <tr>
-            <th rowspan="2" class="w-item">ITEM</th>
-            <th rowspan="2" class="w-name">APELLIDOS Y NOMBRES</th>
-            <th rowspan="2" class="w-dni">DNI</th>
-            <th rowspan="2" class="w-role">CARGO</th>
-            <th colspan="2" class="w-time">HORARIO LABORAL</th>
-            <th colspan="3" class="w-prod">PRODUCCIÓN / ACTIVIDAD</th>
-            <th rowspan="2" class="w-sign">FIRMA</th>
-          </tr>
-          <tr>
-            <th class="w-time-col">ING.</th>
-            <th class="w-time-col">SAL.</th>
-            <th class="w-desc">CÓDIGO</th>
-            <th class="w-meta">ASIGNADA</th>
-            <th class="w-real">REALIZADA</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in reportData" :key="row.item">
-            <td class="text-center">{{ row.item }}</td>
-            <td class="text-left font-sm">{{ row.name }}</td>
-            <td class="text-center">{{ row.dni }}</td>
-            <td class="text-left font-xs">{{ row.role }}</td>
-            <td class="text-center">{{ row.checkIn }}</td>
-            <td class="text-center">{{ row.checkOut }}</td>
-            
-            <!-- Activity Description (Now just Code) -->
-            <td class="text-center font-xs">
-                <div v-for="(act, i) in row.activitiesList" :key="i" class="act-line">
-                    {{ act.description }}
-                </div>
-            </td>
-            
-            <!-- Meta (Assigned) -->
-            <td class="text-center font-xs">
-                <div v-for="(act, i) in row.activitiesList" :key="i" class="act-line">
-                    {{ act.assigned }}
-                </div>
-            </td>
-
-            <!-- Real (Completed) -->
-            <td class="text-center font-xs">
-                <div v-for="(act, i) in row.activitiesList" :key="i" class="act-line">
-                    {{ act.completed }}
-                </div>
-            </td>
-
-            <td></td> <!-- Firma -->
-          </tr>
-        </tbody>
-      </table>
-    </div>
   </div>
 </template>
 
@@ -275,17 +420,48 @@ input[type="date"] {
     border: 1px solid #ccc;
 }
 
+.actions-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 1rem;
+}
+
 .btn-print {
     background: #4ade80;
     color: #14532d;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
+    padding: 0.6rem 1.25rem;
+    border-radius: 6px;
     border: none;
     font-weight: bold;
     cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(74, 222, 128, 0.3);
+    transition: all 0.2s;
 }
 
+.btn-print:hover:not(:disabled) {
+    background: #22c55e;
+    transform: translateY(-2px);
+}
 
+.btn-print-monthly {
+    background: #3b82f6;
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+.btn-print-monthly:hover:not(:disabled) {
+    background: #2563eb;
+}
+
+.btn-print:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
 
 /* Glass panel for controls only */
 .glass-panel {
@@ -322,19 +498,27 @@ input[type="date"] {
     font-style: italic;
 }
 
-/* Print Sheet Visualization on Screen - HIDDEN BY DEFAULT */
+/* Print Sheet Setup (now used for html2pdf styling as well) */
 .screen-hidden {
     display: none;
 }
-.print-sheet {
-  background: white;
-  width: 297mm; /* A4 Landscape width approx */
-  min-height: 210mm;
-  padding: 10mm;
-  box-shadow: 0 0 10px rgba(0,0,0,0.2);
-  margin-bottom: 2rem;
+
+.pdf-export-container {
+    width: 297mm; /* Force A4 Landscape width for rendering */
+    background: white;
+    /* We ensure it renders quietly off-screen if we don't want to flash it */
+    position: absolute;
+    left: -9999px;
+    top: 0;
 }
 
+.print-sheet {
+  background: white;
+  width: 100%;
+  min-height: 210mm; /* A4 Landscape height approx */
+  padding: 10mm;
+  box-sizing: border-box;
+}
 
 /* Header Styles */
 .company-name {
@@ -413,7 +597,8 @@ input[type="date"] {
     border-bottom: none;
 }
 
-/* Print Media Query */
+/* We keep media print just in case someone hits Ctrl+P natively, 
+   but our main export is via html2pdf now */
 @media print {
   @page {
     size: landscape;
@@ -427,49 +612,41 @@ input[type="date"] {
     print-color-adjust: exact;
   }
 
-  /* Hide everything that's not the print sheet */
-  .no-print, .main-nav, .app-layout > *:not(.content-area) {
+  /* Hide everything on screen */
+  .reports-container > .controls,
+  .reports-container > .dashboard-view,
+  nav, button, .app-layout > *:not(.content-area) {
     display: none !important;
   }
   
-  /* OVERRIDE: Hide Vue DevTools and persistent overlays */
+  /* Overrides for dev tools just in case */
   body > div:not(#app),
-  iframe[src*="vite-plugin-vue-devtools"],
-  .vue-devtools__anchor,
-  [id*="vite-plugin-vue-devtools"],
-  [class*="vue-devtools"],
-  [aria-label="Vue DevTools"],
-  #vue-devtools-anchor {
+  [id*="vite-plugin-vue-devtools"] {
       display: none !important;
-      visibility: hidden !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
   }
-  
-  /* Ensure print sheet takes full width without margins/shadows */
+
   .reports-container {
     width: 100%;
     margin: 0;
     padding: 0;
-    align-items: flex-start;
-  }
-  
-  .print-sheet {
-    display: block !important; /* Force show on print */
-    width: 100%;
-    height: auto;
-    box-shadow: none;
-    margin: 0;
-    padding: 0; /* Constraints already handled by body padding */
   }
 
-  .screen-hidden {
+  .pdf-export-container, .screen-hidden {
       display: block !important;
+      position: relative;
+      left: 0;
+  }
+
+  .print-sheet {
+    display: block !important;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
   }
   
-  /* Navigation hiding might need to be higher up in App.vue styles or global */
-  nav, button {
-      display: none !important;
+  .multi-page {
+      page-break-before: always;
   }
 }
 

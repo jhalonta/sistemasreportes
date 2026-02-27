@@ -6,11 +6,63 @@ import { useNotifications } from '../composables/useNotifications';
 import { useGlobalStore } from '../stores/global';
 import { storeToRefs } from 'pinia';
 
-const { currentTime, isWithinSchedule, checkIn, removeCheckIn, markAbsent, markAll, getStatus } = useAttendance();
+const { currentTime, isWithinSchedule, checkIn, removeCheckIn, markAbsent, markAll, getStatus, records } = useAttendance();
 const { showNotification } = useNotifications();
 
 const globalStore = useGlobalStore();
 const { selectedDate } = storeToRefs(globalStore);
+
+const daysInMonth = computed(() => {
+    if (!selectedDate.value) return [];
+    const [year, month, _] = selectedDate.value.split('-').map(Number);
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
+    const days = [];
+    for (let i = 1; i <= lastDayOfMonth; i++) {
+        days.push(i);
+    }
+    return days;
+});
+
+const monthlyAttendanceList = computed(() => {
+    if (!selectedDate.value) return [];
+    const [year, month, _] = selectedDate.value.split('-');
+    
+    return personnel.map(person => {
+        const attendance = [];
+        let totalPresent = 0;
+        let totalAbsent = 0;
+        
+        for (let i = 1; i <= daysInMonth.value.length; i++) {
+            const dateStr = `${year}-${month}-${String(i).padStart(2, '0')}`;
+            const record = records.value[dateStr]?.[person.id];
+            
+            let statusChar = '';
+            // If date is in the future, we don't count it yet
+            if (record) {
+                if (record.status === 'Presente') {
+                    statusChar = 'P';
+                    totalPresent++;
+                } else if (record.status === 'Falta') {
+                    statusChar = 'F';
+                    totalAbsent++;
+                }
+            }
+            attendance.push(statusChar);
+        }
+        
+        return {
+            name: person.name,
+            role: person.role,
+            attendance,
+            totalPresent,
+            totalAbsent
+        };
+    });
+});
+
+const printMonthlyReport = () => {
+    window.print();
+};
 
 const isToday = computed(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -61,7 +113,12 @@ const handleMarkAll = async () => {
       <div class="clock-display">
         <div class="date-selector">
             <label>Fecha de Registro:</label>
-            <input type="date" v-model="selectedDate" class="date-input" />
+            <div class="date-controls">
+                <input type="date" v-model="selectedDate" class="date-input" />
+                <button @click="printMonthlyReport" class="btn-print" title="Imprimir Reporte Mensual PDF">
+                    🖨️ PDF Mensual
+                </button>
+            </div>
         </div>
 
         <div class="time-wrapper" v-if="isToday">
@@ -142,6 +199,56 @@ const handleMarkAll = async () => {
         </table>
       </div>
     </main>
+
+    <!-- Printable Area (Hidden on Screen) -->
+    <div class="print-sheet screen-hidden">
+        <header class="report-header">
+            <h1 class="company-name">CONSORCIO <span class="blue-text">GALCAS</span> INGENIEROS</h1>
+            <div class="company-info">
+                <p><strong>RUC:</strong> 20612913766</p>
+                <p><strong>DIRECCIÓN:</strong> AV. SALAVERRY N° 2415 INT. 202 - SAN ISIDRO - LIMA</p>
+            </div>
+            
+            <h2 class="report-title">
+                REPORTE GENERAL DE ASISTENCIA MENSUAL 
+                - {{ selectedDate ? selectedDate.split('-')[1] + '/' + selectedDate.split('-')[0] : '' }}
+            </h2>
+        </header>
+
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th rowspan="2" class="w-item">N°</th>
+                    <th rowspan="2" class="w-name">APELLIDOS Y NOMBRES</th>
+                    <th rowspan="2" class="w-role">CARGO</th>
+                    <th :colspan="daysInMonth.length" class="text-center bg-gray">DÍAS DEL MES</th>
+                    <th colspan="2" class="text-center bg-gray">TOTAL</th>
+                </tr>
+                <tr>
+                    <th v-for="day in daysInMonth" :key="day" class="w-day">{{ day }}</th>
+                    <th class="w-total">P</th>
+                    <th class="w-total">F</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="(person, index) in monthlyAttendanceList" :key="index">
+                    <td class="text-center">{{ index + 1 }}</td>
+                    <td class="text-left font-sm">{{ person.name }}</td>
+                    <td class="text-left font-xs">{{ person.role }}</td>
+                    <td v-for="(status, i) in person.attendance" :key="i" class="text-center font-bold"
+                        :class="{'text-green': status === 'P', 'text-red': status === 'F'}">
+                        {{ status }}
+                    </td>
+                    <td class="text-center font-bold text-green">{{ person.totalPresent }}</td>
+                    <td class="text-center font-bold text-red">{{ person.totalAbsent }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="leyenda mt-4">
+            <p><strong>LEYENDA:</strong> <span class="text-green">P</span> = Presente | <span class="text-red">F</span> = Falta</p>
+        </div>
+    </div>
   </div>
 </template>
 
@@ -510,6 +617,122 @@ td {
   
   .role-cell {
     display: none; /* Hide role on small screens if needed */
+  }
+}
+
+/* Print Styles */
+.screen-hidden {
+    display: none;
+}
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 1cm;
+  }
+
+  body {
+    background: white;
+    margin: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide everything on screen */
+  .attendance-container > .header,
+  .attendance-container > .staff-list-container,
+  nav, button, .app-layout > *:not(.content-area) {
+    display: none !important;
+  }
+  
+  /* Overrides for dev tools just in case */
+  body > div:not(#app),
+  [id*="vite-plugin-vue-devtools"] {
+      display: none !important;
+  }
+
+  .attendance-container {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .print-sheet {
+    display: block !important;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    color: black;
+  }
+
+  .report-header {
+      margin-bottom: 20px;
+  }
+
+  .company-name {
+    color: #009e60;
+    font-size: 20pt;
+    font-weight: 900;
+    text-align: center;
+    margin: 0;
+  }
+
+  .blue-text { color: #1e3a8a; }
+  
+  .company-info {
+    font-size: 9pt;
+    text-align: center;
+    margin-top: 5px;
+  }
+
+  .report-title {
+    text-align: center;
+    font-size: 14pt;
+    margin: 15px 0;
+    text-decoration: underline;
+  }
+
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8pt;
+  }
+
+  .report-table th, .report-table td {
+    border: 1px solid #000;
+    padding: 4px;
+    vertical-align: middle;
+  }
+
+  .report-table th {
+    background-color: #f3f4f6 !important;
+    font-weight: bold;
+  }
+
+  .bg-gray {
+      background-color: #e5e7eb !important;
+  }
+
+  .text-center { text-align: center; }
+  .text-left { text-align: left; }
+  .font-bold { font-weight: bold; }
+  .font-sm { font-size: 8pt; }
+  .font-xs { font-size: 7pt; }
+  
+  .text-green { color: #059669 !important; }
+  .text-red { color: #dc2626 !important; }
+
+  .w-item { width: 20px; }
+  .w-name { width: 220px; }
+  .w-role { width: 100px; }
+  .w-day { width: 20px; font-size: 7pt; padding: 2px !important; }
+  .w-total { width: 25px; }
+  
+  .leyenda {
+      font-size: 9pt;
+      margin-top: 15px;
+      page-break-inside: avoid;
   }
 }
 </style>
