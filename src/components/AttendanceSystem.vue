@@ -115,7 +115,7 @@ const handleMarkAll = async () => {
             <label>Fecha de Registro:</label>
             <div class="date-controls">
                 <input type="date" v-model="selectedDate" class="date-input" />
-                <button @click="printMonthlyReport" class="btn-print" title="Imprimir Reporte Mensual PDF">
+                <button @click="printMonthlyReport" class="btn-primary" title="Imprimir Reporte Mensual PDF">
                     🖨️ PDF Mensual
                 </button>
             </div>
@@ -376,6 +376,12 @@ const handleMarkAll = async () => {
     font-size: 0.85rem;
     font-weight: 600;
     color: #64748b;
+}
+
+.date-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
 }
 
 .date-input {

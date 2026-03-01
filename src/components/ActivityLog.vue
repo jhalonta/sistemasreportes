@@ -695,6 +695,10 @@ select:focus, input:focus {
     background: #eef2ff;
 }
 
+.activities-section {
+    margin-bottom: 2rem;
+}
+
 .totals-section {
     display: grid;
     grid-template-columns: 1fr 1fr;

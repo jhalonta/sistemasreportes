@@ -11,8 +11,14 @@ export function useAttendance() {
   }, 1000);
 
   const isWithinSchedule = computed(() => {
-    // FOR TESTING: Always return true
-    return true; 
+    const hours = currentTime.value.getHours();
+    const minutes = currentTime.value.getMinutes();
+    const timeInMinutes = hours * 60 + minutes;
+    
+    const openingTime = 7 * 60 + 30; // 07:30
+    const closingTime = 19 * 60;     // 19:00 (7:00 PM)
+
+    return timeInMinutes >= openingTime && timeInMinutes <= closingTime;
   });
 
   const getTodayDateString = () => {
