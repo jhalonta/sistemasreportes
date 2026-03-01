@@ -65,7 +65,7 @@ const barData = computed(() => {
       map[mainName].real += realized;
     }
   });
-  const labels = Object.keys(map);
+  const labels = Object.keys(map).sort((a, b) => map[b].real - map[a].real);
   return {
     labels,
     datasets: [
@@ -117,7 +117,7 @@ const donutData = computed(() => {
       map[mainName] = (map[mainName] || 0) + realized;
     }
   });
-  const labels = Object.keys(map);
+  const labels = Object.keys(map).sort((a, b) => map[b] - map[a]);
   const palette = ['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#a3e635'];
   return {
     labels,
