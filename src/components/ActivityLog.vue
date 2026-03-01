@@ -153,6 +153,7 @@ const removeRow = (index) => {
 const startEditing = (activity) => {
     editingId.value = activity.id;
     editForm.value = {
+        rateCode: activity.rateCode,
         assigned: activity.assigned,
         completed: activity.completed
     };
@@ -163,7 +164,7 @@ const cancelEditing = () => {
 };
 
 const saveEdit = (activity) => {
-    const rate = getRateInfo(activity.rateCode); 
+    const rate = getRateInfo(editForm.value.rateCode); 
     if (!rate) return;
 
     const assigned = Number(editForm.value.assigned);
@@ -173,6 +174,8 @@ const saveEdit = (activity) => {
     const newRealized = (rate.price * completed).toFixed(2);
 
     updateActivity(activity.id, {
+        rateCode: rate.code,
+        description: `${rate.code} - ${rate.name}`,
         assigned: assigned,
         completed: completed,
         projectedValue: newProjected,
@@ -312,7 +315,6 @@ const handleSubmit = () => {
         <section class="activities-section">
             <div class="section-header">
                 <h3>Actividades Realizadas</h3>
-                <span class="badge">{{ activityRows.length }}</span>
             </div>
             
             <transition-group name="list" tag="div" class="rows-container">
@@ -414,14 +416,26 @@ const handleSubmit = () => {
 
                     <!-- Edit Mode -->
                     <div v-else class="edit-mode inline">
-                        <div class="edit-grid compact">
-                            <div class="form-group">
-                                <label>Meta</label>
-                                <input type="number" v-model="editForm.assigned" min="0">
+                        <div class="edit-grid compact edit-full">
+                            <div class="form-group full-width-edit">
+                                <label>Partida (Actividad)</label>
+                                <select v-model="editForm.rateCode" required class="edit-select">
+                                    <optgroup v-for="(group, category) in groupedRates" :key="category" :label="category">
+                                      <option v-for="rate in group" :key="rate.code" :value="rate.code">
+                                        {{ rate.code }} - {{ rate.name }} (S/ {{ rate.price.toFixed(2) }})
+                                      </option>
+                                    </optgroup>
+                                </select>
                             </div>
-                             <div class="form-group">
-                                <label>Real</label>
-                                <input type="number" v-model="editForm.completed" min="0">
+                            <div class="qty-group-edit">
+                                <div class="form-group">
+                                    <label>Meta</label>
+                                    <input type="number" v-model="editForm.assigned" min="0">
+                                </div>
+                                 <div class="form-group">
+                                    <label>Real</label>
+                                    <input type="number" v-model="editForm.completed" min="0">
+                                </div>
                             </div>
                         </div>
                         <div class="edit-actions">
@@ -888,6 +902,17 @@ select:focus, input:focus {
 
 .edit-grid.compact {
     display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+}
+
+.edit-grid.compact.edit-full {
+    flex: 1;
+}
+
+.qty-group-edit {
+    display: flex;
     gap: 1rem;
 }
 
@@ -897,9 +922,21 @@ select:focus, input:focus {
     gap: 0.2rem;
 }
 
+.full-width-edit {
+    width: 100%;
+}
+
+.edit-select {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+}
+
 .edit-grid.compact input {
-    width: 80px;
-    padding: 0.4rem;
+    width: 100px;
+    padding: 0.5rem;
     font-size: 0.9rem;
 }
 
