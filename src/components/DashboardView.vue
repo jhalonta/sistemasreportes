@@ -46,10 +46,24 @@ const fmt = (n) => `S/ ${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 const barData = computed(() => {
   const map = {};
   filteredActivities.value.forEach(a => {
-    const name = shortName(a.mainTechName || 'Desconocido');
-    if (!map[name]) map[name] = { est: 0, real: 0 };
-    map[name].est  += parseFloat(a.projectedValue) || 0;
-    map[name].real += parseFloat(a.realizedValue)  || 0;
+    const projected = parseFloat(a.projectedValue) || 0;
+    const realized = parseFloat(a.realizedValue) || 0;
+    const mainName = shortName(a.mainTechName || 'Desconocido');
+
+    if (!map[mainName]) map[mainName] = { est: 0, real: 0 };
+
+    if (a.partnerTechName) {
+      const partnerName = shortName(a.partnerTechName);
+      if (!map[partnerName]) map[partnerName] = { est: 0, real: 0 };
+      
+      map[mainName].est += projected / 2;
+      map[mainName].real += realized / 2;
+      map[partnerName].est += projected / 2;
+      map[partnerName].real += realized / 2;
+    } else {
+      map[mainName].est += projected;
+      map[mainName].real += realized;
+    }
   });
   const labels = Object.keys(map);
   return {
@@ -92,8 +106,16 @@ const barOptions = {
 const donutData = computed(() => {
   const map = {};
   filteredActivities.value.forEach(a => {
-    const name = shortName(a.mainTechName || 'Desconocido');
-    map[name] = (map[name] || 0) + (parseFloat(a.realizedValue) || 0);
+    const realized = parseFloat(a.realizedValue) || 0;
+    const mainName = shortName(a.mainTechName || 'Desconocido');
+    
+    if (a.partnerTechName) {
+      const partnerName = shortName(a.partnerTechName);
+      map[mainName] = (map[mainName] || 0) + (realized / 2);
+      map[partnerName] = (map[partnerName] || 0) + (realized / 2);
+    } else {
+      map[mainName] = (map[mainName] || 0) + realized;
+    }
   });
   const labels = Object.keys(map);
   const palette = ['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#a3e635'];
@@ -136,6 +158,7 @@ const dailyBreakdown = computed(() => {
 
 // ── Helpers ────────────────────────────────────────────────────────────
 function shortName(fullName) {
+  if (!fullName) return '';
   const parts = fullName.split(' ');
   return parts.length > 2 ? `${parts[0]} ${parts[2] || parts[1]}` : fullName;
 }

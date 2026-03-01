@@ -90,7 +90,9 @@ const busyTechIds = computed(() => {
 });
 
 const availableLeadTechs = computed(() => {
-  let available = operationalPersonnel.value.filter(p => !busyTechIds.value.has(p.id));
+  let available = operationalPersonnel.value.filter(p => 
+    !busyTechIds.value.has(p.id) || p.id === selectedMainTech.value
+  );
   if (selectedPartnerTech.value) {
     available = available.filter(p => p.id !== selectedPartnerTech.value);
   }
@@ -99,7 +101,9 @@ const availableLeadTechs = computed(() => {
 
 const availablePartners = computed(() => {
   if (!selectedMainTech.value) return [];
-  let available = operationalPersonnel.value.filter(p => !busyTechIds.value.has(p.id));
+  let available = operationalPersonnel.value.filter(p => 
+    !busyTechIds.value.has(p.id) || p.id === selectedPartnerTech.value
+  );
   return available.filter(p => p.id !== selectedMainTech.value);
 });
 
@@ -122,7 +126,9 @@ const groupedActivities = computed(() => {
             const group = {
                 id: key, 
                 timestamp: act.timestamp,
+                mainTechId: act.mainTechId,
                 mainTechName: act.mainTechName,
+                partnerTechId: act.partnerTechId,
                 partnerTechName: act.partnerTechName,
                 items: []
             };
@@ -135,6 +141,22 @@ const groupedActivities = computed(() => {
 });
 
 // Actions
+const addActivityToGroup = (group) => {
+    selectedMainTech.value = group.mainTechId;
+    selectedPartnerTech.value = group.partnerTechId || '';
+    
+    // Reset activity rows to a single clean row
+    activityRows.value = [{ 
+      id: crypto.randomUUID(), 
+      rateCode: '', 
+      assigned: 0, 
+      completed: 0 
+    }];
+
+    // Scroll smoothly to top of the page
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 const addRow = () => {
   activityRows.value.push({ 
     id: crypto.randomUUID(), 
@@ -393,7 +415,12 @@ const handleSubmit = () => {
                     <span class="tech-name main">{{ group.mainTechName }}</span>
                     <span v-if="group.partnerTechName" class="tech-name partner">+ {{ group.partnerTechName }}</span>
                 </div>
-                <span class="time-badge">{{ formatDate(group.timestamp) }}</span>
+                <div class="group-actions">
+                    <span class="time-badge">{{ formatDate(group.timestamp) }}</span>
+                    <button type="button" class="btn-group-add" @click="addActivityToGroup(group)" title="Agregar actividad a este grupo">
+                        + Agregar
+                    </button>
+                </div>
             </div>
 
             <div class="group-body">
@@ -796,6 +823,29 @@ select:focus, input:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.group-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.btn-group-add {
+    background: transparent;
+    border: 1px dashed #6366f1;
+    color: #6366f1;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-group-add:hover {
+    background: #e0e7ff;
+    border-style: solid;
 }
 
 .group-body {
