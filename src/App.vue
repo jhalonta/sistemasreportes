@@ -5,8 +5,11 @@ import ActivityLog from './components/ActivityLog.vue';
 import ReportsView from './components/ReportsView.vue';
 import DashboardView from './components/DashboardView.vue';
 import NotificationToast from './components/NotificationToast.vue';
+import LoginView from './components/LoginView.vue';
+import { useAuthStore } from './stores/auth';
 
 const currentTab = ref('attendance');
+const authStore = useAuthStore();
 
 // ── Theme toggle ──────────────────────────────────────────────────
 const isDark = ref(false);
@@ -32,7 +35,15 @@ onMounted(() => {
 
 <template>
   <NotificationToast />
-  <div class="app-layout">
+
+  <div v-if="authStore.loading" class="loading-screen">
+    <div class="spinner"></div>
+    <p>Cargando sesión...</p>
+  </div>
+
+  <LoginView v-else-if="!authStore.user" />
+
+  <div v-else class="app-layout">
     <nav class="main-nav">
       <button @click="currentTab = 'attendance'" :class="{ active: currentTab === 'attendance' }" class="nav-tab">
         Asistencia
@@ -50,6 +61,10 @@ onMounted(() => {
       <button @click="toggleTheme" class="theme-toggle" :title="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'">
         <span v-if="isDark">☀️</span>
         <span v-else>🌙</span>
+      </button>
+      <div class="nav-divider"></div>
+      <button @click="authStore.logout()" class="nav-tab logout-btn" title="Cerrar Sesión">
+        🚪 Salir
       </button>
     </nav>
 
@@ -153,5 +168,40 @@ onMounted(() => {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+.logout-btn {
+  color: var(--danger) !important;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.logout-btn:hover {
+  background: var(--danger-bg) !important;
+  color: var(--danger-fg) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.loading-screen {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-main);
+  color: var(--text-sub);
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border-2);
+  border-radius: 50%;
+  border-top-color: var(--brand-primary);
+  animation: spin 0.8s ease-in-out infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
