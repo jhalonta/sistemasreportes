@@ -3,11 +3,13 @@ import { ref, computed } from 'vue';
 import { personnel } from '../data/personnel';
 import { rates } from '../data/rates';
 import { useActivities } from '../composables/useActivities';
+import { useAttendance } from '../composables/useAttendance';
 import { useNotifications } from '../composables/useNotifications';
 import { useGlobalStore } from '../stores/global';
 import { storeToRefs } from 'pinia';
 
 const { activities, addActivity, updateActivity, deleteActivity } = useActivities();
+const { getStatus } = useAttendance();
 const { showNotification } = useNotifications();
 
 const globalStore = useGlobalStore();
@@ -73,9 +75,14 @@ const totalRealized = computed(() => {
 });
 
 const excludedRoles = ['Analista Informatico', 'Asistente Administrativo'];
-const operationalPersonnel = computed(() => 
-  personnel.filter(p => !excludedRoles.includes(p.role))
-);
+const operationalPersonnel = computed(() => {
+  return personnel.filter(p => {
+    if (excludedRoles.includes(p.role)) return false;
+    const attendanceRecord = getStatus(p.id, selectedDate.value);
+    if (attendanceRecord && attendanceRecord.status === 'Falta') return false;
+    return true;
+  });
+});
 
 const busyTechIds = computed(() => {
   const targetDate = selectedDate.value;
