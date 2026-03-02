@@ -234,8 +234,14 @@ export function useReports() {
                     a.mainTechId === person.id || a.partnerTechId === person.id
                 );
 
-                const totalAssigned = personActivities.reduce((sum, a) => sum + (parseFloat(a.projectedValue) || 0), 0);
-                const totalRealized = personActivities.reduce((sum, a) => sum + (parseFloat(a.realizedValue) || 0), 0);
+                const totalAssigned = personActivities.reduce((sum, a) => {
+                    const value = parseFloat(a.projectedValue) || 0;
+                    return sum + (a.partnerTechId ? value / 2 : value);
+                }, 0);
+                const totalRealized = personActivities.reduce((sum, a) => {
+                    const value = parseFloat(a.realizedValue) || 0;
+                    return sum + (a.partnerTechId ? value / 2 : value);
+                }, 0);
                 const uniqueDays = new Set(personActivities.map(a => a.timestamp.split('T')[0])).size;
 
                 return {
