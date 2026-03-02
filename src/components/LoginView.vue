@@ -102,7 +102,7 @@ const handleLogin = async () => {
 
           <p class="footer-text">
             ¿No tienes una cuenta? 
-            <a href="https://wa.me/51922596820" target="_blank" rel="noopener">Contacta con soporte</a>
+            <a href="https://wa.me/51922596820?text=Hola,%20necesito%20ayuda%20para%20crear%20una%20cuenta%20en%20el%20Sistema%20de%20Reportes" target="_blank" rel="noopener">Contacta con soporte</a>
           </p>
 
         </div>
