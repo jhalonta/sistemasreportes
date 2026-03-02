@@ -48,24 +48,26 @@ const barData = computed(() => {
   filteredActivities.value.forEach(a => {
     const projected = parseFloat(a.projectedValue) || 0;
     const realized = parseFloat(a.realizedValue) || 0;
-    const mainName = shortName(a.mainTechName || 'Desconocido');
+    const mainId = a.mainTechId || 'Desconocido';
 
-    if (!map[mainName]) map[mainName] = { est: 0, real: 0 };
+    if (!map[mainId]) map[mainId] = { est: 0, real: 0, name: a.mainTechName || 'Desconocido' };
 
-    if (a.partnerTechName) {
-      const partnerName = shortName(a.partnerTechName);
-      if (!map[partnerName]) map[partnerName] = { est: 0, real: 0 };
+    if (a.partnerTechId) {
+      const partnerId = a.partnerTechId;
+      if (!map[partnerId]) map[partnerId] = { est: 0, real: 0, name: a.partnerTechName || 'Desconocido' };
       
-      map[mainName].est += projected / 2;
-      map[mainName].real += realized / 2;
-      map[partnerName].est += projected / 2;
-      map[partnerName].real += realized / 2;
+      map[mainId].est += projected / 2;
+      map[mainId].real += realized / 2;
+      map[partnerId].est += projected / 2;
+      map[partnerId].real += realized / 2;
     } else {
-      map[mainName].est += projected;
-      map[mainName].real += realized;
+      map[mainId].est += projected;
+      map[mainId].real += realized;
     }
   });
-  const labels = Object.keys(map).sort((a, b) => map[b].real - map[a].real);
+  const sortedIds = Object.keys(map).sort((a, b) => map[b].real - map[a].real);
+  const labels = sortedIds.map(id => shortName(map[id].name));
+  
   return {
     labels,
     datasets: [
@@ -107,22 +109,30 @@ const donutData = computed(() => {
   const map = {};
   filteredActivities.value.forEach(a => {
     const realized = parseFloat(a.realizedValue) || 0;
-    const mainName = shortName(a.mainTechName || 'Desconocido');
+    const mainId = a.mainTechId || 'Desconocido';
     
-    if (a.partnerTechName) {
-      const partnerName = shortName(a.partnerTechName);
-      map[mainName] = (map[mainName] || 0) + (realized / 2);
-      map[partnerName] = (map[partnerName] || 0) + (realized / 2);
+    if (!map[mainId]) map[mainId] = { real: 0, name: a.mainTechName || 'Desconocido' };
+
+    if (a.partnerTechId) {
+      const partnerId = a.partnerTechId;
+      if (!map[partnerId]) map[partnerId] = { real: 0, name: a.partnerTechName || 'Desconocido' };
+      
+      map[mainId].real += realized / 2;
+      map[partnerId].real += realized / 2;
     } else {
-      map[mainName] = (map[mainName] || 0) + realized;
+      map[mainId].real += realized;
     }
   });
-  const labels = Object.keys(map).sort((a, b) => map[b] - map[a]);
+  
+  const sortedIds = Object.keys(map).sort((a, b) => map[b].real - map[a].real);
+  const labels = sortedIds.map(id => shortName(map[id].name));
+  const data = sortedIds.map(id => map[id].real);
+  
   const palette = ['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#a3e635'];
   return {
     labels,
     datasets: [{
-      data: labels.map(l => map[l]),
+      data: data,
       backgroundColor: palette,
       borderWidth: 2,
     }],
