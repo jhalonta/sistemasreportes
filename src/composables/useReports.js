@@ -242,6 +242,7 @@ export function useReports() {
                     const value = parseFloat(a.realizedValue) || 0;
                     return sum + (a.partnerTechId ? value / 2 : value);
                 }, 0);
+                
                 const uniqueDays = new Set(personActivities.map(a => a.timestamp.split('T')[0])).size;
 
                 return {
