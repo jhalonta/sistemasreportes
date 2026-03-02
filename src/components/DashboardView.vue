@@ -73,7 +73,7 @@ const barData = computed(() => {
     datasets: [
       {
         label: 'Estimado (S/.)',
-        data: labels.map(l => map[l].est),
+        data: sortedIds.map(id => map[id].est),
         backgroundColor: 'rgba(99,102,241,0.7)',
         borderColor: '#6366f1',
         borderWidth: 1,
@@ -81,7 +81,7 @@ const barData = computed(() => {
       },
       {
         label: 'Realizado (S/.)',
-        data: labels.map(l => map[l].real),
+        data: sortedIds.map(id => map[id].real),
         backgroundColor: 'rgba(16,185,129,0.7)',
         borderColor: '#10b981',
         borderWidth: 1,
