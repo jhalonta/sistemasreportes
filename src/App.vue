@@ -40,11 +40,11 @@ onMounted(() => {
       <button @click="currentTab = 'activities'" :class="{ active: currentTab === 'activities' }" class="nav-tab">
         Actividades
       </button>
-      <button @click="currentTab = 'reports'" :class="{ active: currentTab === 'reports' }" class="nav-tab">
-        Reportes
-      </button>
       <button @click="currentTab = 'dashboard'" :class="{ active: currentTab === 'dashboard' }" class="nav-tab">
         📊 Dashboard
+      </button>
+      <button @click="currentTab = 'reports'" :class="{ active: currentTab === 'reports' }" class="nav-tab">
+        Reportes
       </button>
       <div class="nav-divider"></div>
       <button @click="toggleTheme" class="theme-toggle" :title="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'">
