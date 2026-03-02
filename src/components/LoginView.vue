@@ -37,16 +37,6 @@ const handleLogin = async () => {
           </p>
         </div>
 
-        <div class="brand-content-bottom z-10 mt-auto">
-          <div class="avatars">
-            <img src="https://ui-avatars.com/api/?name=Ana&background=random" alt="user" class="avatar" />
-            <img src="https://ui-avatars.com/api/?name=Carlos&background=random" alt="user" class="avatar" />
-            <img src="https://ui-avatars.com/api/?name=Diana&background=random" alt="user" class="avatar" />
-            <div class="avatar-count">+2k</div>
-          </div>
-          <p class="join-text">Únete a más de 2,000 profesionales hoy mismo.</p>
-        </div>
-        
         <!-- Abstract Decorations -->
         <div class="blob top-blob"></div>
         <div class="blob bottom-blob"></div>
@@ -218,50 +208,6 @@ const handleLogin = async () => {
   font-weight: 500;
   line-height: 1.6;
   max-width: 90%;
-}
-
-.brand-content-bottom {
-  position: relative;
-  z-index: 10;
-  margin-top: auto;
-}
-
-.avatars {
-  display: flex;
-  margin-bottom: 1rem;
-}
-
-.avatar {
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 50%;
-  border: 3px solid #4f46e5;
-  margin-left: -0.75rem;
-  background: white;
-  object-fit: cover;
-}
-.avatar:first-child { margin-left: 0; }
-
-.avatar-count {
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 50%;
-  border: 3px solid #4f46e5;
-  margin-left: -0.75rem;
-  background: #312e81; /* indigo-900 */
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 700;
-  z-index: 5;
-}
-
-.join-text {
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 0.9rem;
-  font-weight: 500;
 }
 
 /* Blob decorations */
