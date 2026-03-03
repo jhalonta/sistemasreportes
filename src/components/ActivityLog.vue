@@ -24,12 +24,12 @@ const isToday = computed(() => {
 const selectedMainTech = ref('');
 const selectedPartnerTech = ref('');
 const activityRows = ref([
-  { id: crypto.randomUUID(), rateCode: '', assigned: 0, completed: 0 }
+  { id: crypto.randomUUID(), rateCode: '', assigned: 0, completed: 0, observations: '' }
 ]);
 
 // Editing State
 const editingId = ref(null);
-const editForm = ref({ assigned: 0, completed: 0 });
+const editForm = ref({ assigned: 0, completed: 0, observations: '' });
 const showDeleteModal = ref(false);
 const itemToDeleteId = ref(null);
 
@@ -157,7 +157,8 @@ const addActivityToGroup = (group) => {
       id: crypto.randomUUID(), 
       rateCode: '', 
       assigned: 0, 
-      completed: 0 
+      completed: 0,
+      observations: ''
     }];
 
     // Scroll smoothly to top of the page
@@ -169,7 +170,8 @@ const addRow = () => {
     id: crypto.randomUUID(), 
     rateCode: '', 
     assigned: 0, 
-    completed: 0 
+    completed: 0,
+    observations: ''
   });
 };
 
@@ -184,7 +186,8 @@ const startEditing = (activity) => {
     editForm.value = {
         rateCode: activity.rateCode,
         assigned: activity.assigned,
-        completed: activity.completed
+        completed: activity.completed,
+        observations: activity.observations || ''
     };
 };
 
@@ -209,7 +212,8 @@ const saveEdit = (activity) => {
         completed: completed,
         projectedValue: newProjected,
         realizedValue: newRealized,
-        totalValue: newRealized
+        totalValue: newRealized,
+        observations: editForm.value.observations
     });
     
     editingId.value = null;
@@ -273,6 +277,7 @@ const handleSubmit = () => {
       unitPrice: rate.price,
       projectedValue: rowProjected,
       realizedValue: rowRealized,
+      observations: row.observations || '',
       timestamp: timestamp
     });
     savedCount++;
@@ -280,7 +285,7 @@ const handleSubmit = () => {
 
   selectedMainTech.value = '';
   selectedPartnerTech.value = '';
-  activityRows.value = [{ id: crypto.randomUUID(), rateCode: '', assigned: 0, completed: 0 }];
+  activityRows.value = [{ id: crypto.randomUUID(), rateCode: '', assigned: 0, completed: 0, observations: '' }];
   
   showNotification(`${savedCount} actividades registradas (${selectedDate.value})`, 'success');
   scrollToTop();
@@ -437,7 +442,8 @@ const handleSubmit = () => {
                     <div v-if="editingId !== activity.id" class="activity-content">
                         <div class="activity-info">
                             <p class="description">{{ activity.description }}</p>
-                            <div class="stats-mini">
+                            <p v-if="activity.observations" class="observations-text"><small><em>Obs: {{ activity.observations }}</em></small></p>
+                            <div class="stats-mini" :style="activity.observations ? 'margin-top: 0.5rem;' : ''">
                                 <span class="stat-pill">Meta: <strong>{{ activity.assigned }}</strong> <small class="text-muted">S/ {{ activity.projectedValue || '0.00' }}</small></span>
                                 <span class="stat-pill">Real: <strong>{{ activity.completed }}</strong> <small class="text-success">S/ {{ activity.realizedValue || activity.totalValue || '0.00' }}</small></span>
                             </div>
@@ -470,6 +476,10 @@ const handleSubmit = () => {
                                     <label>Real</label>
                                     <input type="number" v-model="editForm.completed" min="0">
                                 </div>
+                            </div>
+                            <div class="form-group full-width-edit" style="margin-top: 0.5rem;">
+                                <label>Observaciones</label>
+                                <input type="text" v-model="editForm.observations" placeholder="Opcional" style="width: 100%; border-radius: 8px;">
                             </div>
                         </div>
                         <div class="edit-actions">
@@ -884,6 +894,12 @@ select:focus, input:focus {
     margin: 0 0 0.4rem 0;
     color: #334155;
     font-weight: 500;
+}
+
+.observations-text {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 0 0 0.5rem 0;
 }
 
 .stats-mini {
