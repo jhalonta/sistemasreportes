@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { Printer, Ban } from 'lucide-vue-next';
 import { personnel } from '../data/personnel';
 import { useAttendance } from '../composables/useAttendance';
 import { useNotifications } from '../composables/useNotifications';
@@ -115,8 +116,8 @@ const handleMarkAll = async () => {
             <label>Fecha de Registro:</label>
             <div class="date-controls">
                 <input type="date" v-model="selectedDate" class="date-input" />
-                <button @click="printMonthlyReport" class="btn-primary" title="Imprimir Reporte Mensual PDF">
-                    🖨️ PDF Mensual
+                <button @click="printMonthlyReport" class="btn-primary" title="Imprimir Reporte Mensual PDF" style="display: flex; align-items: center; gap: 8px;">
+                    <Printer :size="18" /> PDF Mensual
                 </button>
             </div>
         </div>
@@ -191,7 +192,7 @@ const handleMarkAll = async () => {
                     class="btn-absent"
                     title="Marcar como Falta"
                 >
-                    🚫
+                    <Ban :size="18" />
                 </button>
               </td>
             </tr>

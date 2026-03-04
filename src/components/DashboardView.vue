@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
+import { LayoutDashboard, DollarSign, CheckCircle, TrendingUp, TrendingDown, Zap, Search } from 'lucide-vue-next';
 import { useActivities } from '../composables/useActivities';
 import { useGlobalStore } from '../stores/global';
 import { storeToRefs } from 'pinia';
@@ -180,7 +181,9 @@ function shortName(fullName) {
     <!-- ── Top Controls ── -->
     <div class="dash-controls glass">
       <div class="ctrl-left">
-        <h2 class="dash-title">📊 Dashboard de Producción</h2>
+        <h2 class="dash-title" style="display: flex; align-items: center; gap: 8px;">
+          <LayoutDashboard :size="24" /> Dashboard de Producción
+        </h2>
       </div>
       <div class="ctrl-right">
         <div class="toggle-group">
@@ -194,22 +197,25 @@ function shortName(fullName) {
     <!-- ── KPI Cards ── -->
     <div class="kpi-row">
       <div class="kpi-card kpi-est">
-        <p class="kpi-label">💰 Estimado</p>
+        <p class="kpi-label" style="display: flex; align-items: center; gap: 4px;"><DollarSign :size="16" /> Estimado</p>
         <p class="kpi-value">{{ fmt(totalEstimado) }}</p>
         <p class="kpi-sub">{{ filteredActivities.length }} actividades</p>
       </div>
       <div class="kpi-card kpi-real">
-        <p class="kpi-label">✅ Realizado</p>
+        <p class="kpi-label" style="display: flex; align-items: center; gap: 4px;"><CheckCircle :size="16" /> Realizado</p>
         <p class="kpi-value">{{ fmt(totalRealizado) }}</p>
         <p class="kpi-sub">Producción efectiva</p>
       </div>
       <div :class="['kpi-card', diferencia >= 0 ? 'kpi-pos' : 'kpi-neg']">
-        <p class="kpi-label">{{ diferencia >= 0 ? '📈' : '📉' }} Diferencia</p>
+        <p class="kpi-label" style="display: flex; align-items: center; gap: 4px;">
+          <TrendingUp v-if="diferencia >= 0" :size="16" />
+          <TrendingDown v-else :size="16" /> Diferencia
+        </p>
         <p class="kpi-value">{{ diferencia >= 0 ? '+' : '' }}{{ fmt(diferencia) }}</p>
         <p class="kpi-sub">Realizado − Estimado</p>
       </div>
       <div :class="['kpi-card', Number(eficiencia) >= 100 ? 'kpi-pos' : Number(eficiencia) >= 75 ? 'kpi-warn' : 'kpi-neg']">
-        <p class="kpi-label">⚡ Eficiencia</p>
+        <p class="kpi-label" style="display: flex; align-items: center; gap: 4px;"><Zap :size="16" /> Eficiencia</p>
         <p class="kpi-value">{{ eficiencia }}%</p>
         <div class="progress-bar-wrap">
           <div class="progress-bar" :style="{ width: Math.min(Number(eficiencia), 100) + '%', background: Number(eficiencia) >= 100 ? '#10b981' : Number(eficiencia) >= 75 ? '#f59e0b' : '#ef4444' }"></div>
@@ -273,7 +279,9 @@ function shortName(fullName) {
 
     <!-- ── Empty state ── -->
     <div class="empty-dash glass" v-if="filteredActivities.length === 0">
-      <p>🔍 No hay producción registrada para esta {{ filterMode === 'day' ? 'fecha' : 'mes' }}.</p>
+      <p style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <Search :size="20" /> No hay producción registrada para esta {{ filterMode === 'day' ? 'fecha' : 'mes' }}.
+      </p>
     </div>
 
   </div>

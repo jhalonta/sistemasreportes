@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { Table, CalendarDays, Calendar } from 'lucide-vue-next';
 import { useReports } from '../composables/useReports';
 import { useGlobalStore } from '../stores/global';
 import { storeToRefs } from 'pinia';
@@ -364,9 +365,15 @@ const printMonthlyReports = () => {
       </div>
       
       <div class="control-group excel-group">
-          <button @click="generateExcelReport('Diario', selectedDate)" class="btn-excel">📊 Excel Diario</button>
-          <button @click="generateExcelReport('Semanal', selectedDate)" class="btn-excel">📅 Excel Semanal</button>
-          <button @click="generateExcelReport('Mensual', selectedDate)" class="btn-excel">📆 Excel Mensual</button>
+          <button @click="generateExcelReport('Diario', selectedDate)" class="btn-excel" style="display: flex; align-items: center; gap: 6px;">
+            <Table :size="16" /> Excel Diario
+          </button>
+          <button @click="generateExcelReport('Semanal', selectedDate)" class="btn-excel" style="display: flex; align-items: center; gap: 6px;">
+            <CalendarDays :size="16" /> Excel Semanal
+          </button>
+          <button @click="generateExcelReport('Mensual', selectedDate)" class="btn-excel" style="display: flex; align-items: center; gap: 6px;">
+            <Calendar :size="16" /> Excel Mensual
+          </button>
       </div>
     </div>
 

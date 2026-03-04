@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { AlertTriangle, X, Pencil, Trash2, Check } from 'lucide-vue-next';
 import { personnel } from '../data/personnel';
 import { rates } from '../data/rates';
 import { useActivities } from '../composables/useActivities';
@@ -311,7 +312,7 @@ const handleSubmit = () => {
       </header>
       
       <div v-if="pendingPersonnel.length > 0" class="pending-alert">
-        <span class="icon">⚠</span> 
+        <span class="icon"><AlertTriangle :size="20" /></span> 
         <span>Faltan reportar <strong>{{ pendingPersonnel.length }}</strong> técnicos</span>
       </div>
 
@@ -356,7 +357,7 @@ const handleSubmit = () => {
                     <div class="row-header">
                         <span class="row-number">Actividad {{ index + 1 }}</span>
                         <button type="button" class="btn-icon remove" @click="removeRow(index)" v-if="activityRows.length > 1" title="Eliminar Fila">
-                            ✕
+                            <X :size="16" />
                         </button>
                     </div>
                     
@@ -449,8 +450,8 @@ const handleSubmit = () => {
                             </div>
                         </div>
                         <div class="actions">
-                            <button @click="startEditing(activity)" class="btn-icon edit" title="Editar Cantidades">✎</button>
-                            <button @click="requestDelete(activity.id)" class="btn-icon delete" title="Eliminar Actividad">🗑</button>
+                            <button @click="startEditing(activity)" class="btn-icon edit" title="Editar Cantidades"><Pencil :size="16" /></button>
+                            <button @click="requestDelete(activity.id)" class="btn-icon delete" title="Eliminar Actividad"><Trash2 :size="16" /></button>
                         </div>
                     </div>
 
@@ -483,8 +484,8 @@ const handleSubmit = () => {
                             </div>
                         </div>
                         <div class="edit-actions">
-                             <button @click="cancelEditing" class="btn-small secondary">✕</button>
-                             <button @click="saveEdit(activity)" class="btn-small primary">✔</button>
+                             <button @click="cancelEditing" class="btn-small secondary"><X :size="16" /></button>
+                             <button @click="saveEdit(activity)" class="btn-small primary"><Check :size="16" /></button>
                         </div>
                     </div>
 
@@ -499,7 +500,7 @@ const handleSubmit = () => {
   <Transition name="fade">
       <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
           <div class="modal-card">
-              <div class="modal-icon">⚠</div>
+              <div class="modal-icon"><AlertTriangle :size="48" stroke-width="1.5" style="margin-top: 15px;" /></div>
               <h3>¿Eliminar registro?</h3>
               <p>Esta acción no se puede deshacer.</p>
               <div class="modal-actions">
@@ -514,7 +515,7 @@ const handleSubmit = () => {
 <style scoped>
 .activity-container {
   width: 100%;
-  max-width: 900px;
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;

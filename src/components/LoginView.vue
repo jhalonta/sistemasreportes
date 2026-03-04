@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue';
+import { LayoutDashboard, Mail, Lock } from 'lucide-vue-next';
 import { useAuthStore } from '../stores/auth';
 
 const email = ref('');
@@ -25,7 +26,7 @@ const handleLogin = async () => {
         <div class="brand-content-top z-10">
           <div class="logo-row">
             <div class="logo-box">
-              <span>📊</span>
+              <span><LayoutDashboard :size="28" :stroke-width="2.5" color="#4f46e5" /></span>
             </div>
             <span class="brand-name">Sistemas & Reportes</span>
           </div>
@@ -59,7 +60,7 @@ const handleLogin = async () => {
             <div class="input-group">
               <label for="email">Correo electrónico</label>
               <div class="input-with-icon">
-                <span class="icon material">✉️</span>
+                <span class="icon material"><Mail :size="20" /></span>
                 <input 
                   id="email" 
                   type="email" 
@@ -77,7 +78,7 @@ const handleLogin = async () => {
                 <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
               </div>
               <div class="input-with-icon">
-                <span class="icon material">🔒</span>
+                <span class="icon material"><Lock :size="20" /></span>
                 <input 
                   id="password" 
                   type="password" 

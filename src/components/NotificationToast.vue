@@ -1,5 +1,6 @@
 <script setup>
 import { useNotifications } from '../composables/useNotifications';
+import { CheckCircle, AlertCircle, Info } from 'lucide-vue-next';
 
 const { notifications, removeNotification: remove } = useNotifications();
 </script>
@@ -14,9 +15,9 @@ const { notifications, removeNotification: remove } = useNotifications();
         :class="note.type"
       >
         <div class="icon-wrapper">
-            <span v-if="note.type === 'success'" class="material-icon">check_circle</span>
-            <span v-else-if="note.type === 'error'" class="material-icon">error</span>
-            <span v-else class="material-icon">info</span>
+            <span v-if="note.type === 'success'" class="material-icon"><CheckCircle :size="20" /></span>
+            <span v-else-if="note.type === 'error'" class="material-icon"><AlertCircle :size="20" /></span>
+            <span v-else class="material-icon"><Info :size="20" /></span>
         </div>
         <div class="content">
             <span class="title">{{ note.type === 'success' ? '¡Éxito!' : (note.type === 'error' ? 'Atención' : 'Información') }}</span>
