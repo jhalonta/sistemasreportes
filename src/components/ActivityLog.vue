@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { AlertTriangle, X, Pencil, Trash2, Check, PenLine, Plus, Users, ClipboardList, Save } from 'lucide-vue-next';
 import { personnel } from '../data/personnel';
 import { rates } from '../data/rates';
@@ -24,6 +24,7 @@ const isToday = computed(() => {
 // Form State
 const selectedMainTech = ref('');
 const selectedPartnerTech = ref('');
+const forcedVisibleTechs = ref([]);
 const activityRows = ref([
   { id: crypto.randomUUID(), rateCode: '', assigned: 0, completed: 0, observations: '' }
 ]);
@@ -99,7 +100,7 @@ const busyTechIds = computed(() => {
 
 const availableLeadTechs = computed(() => {
   let available = operationalPersonnel.value.filter(p => 
-    !busyTechIds.value.has(p.id) || p.id === selectedMainTech.value || p.id === selectedPartnerTech.value
+    !busyTechIds.value.has(p.id) || p.id === selectedMainTech.value || p.id === selectedPartnerTech.value || forcedVisibleTechs.value.includes(p.id)
   );
   if (selectedPartnerTech.value) {
     available = available.filter(p => p.id !== selectedPartnerTech.value);
@@ -110,7 +111,7 @@ const availableLeadTechs = computed(() => {
 const availablePartners = computed(() => {
   if (!selectedMainTech.value) return [];
   let available = operationalPersonnel.value.filter(p => 
-    !busyTechIds.value.has(p.id) || p.id === selectedPartnerTech.value || p.id === selectedMainTech.value
+    !busyTechIds.value.has(p.id) || p.id === selectedPartnerTech.value || p.id === selectedMainTech.value || forcedVisibleTechs.value.includes(p.id)
   );
   return available.filter(p => p.id !== selectedMainTech.value);
 });
@@ -148,7 +149,14 @@ const groupedActivities = computed(() => {
 });
 
 // Actions
-const addActivityToGroup = (group) => {
+const addActivityToGroup = async (group) => {
+    // Make sure the techs are visible in the lists BEFORE updating the selected models
+    // to prevent the <select> tag from stripping invalid values.
+    forcedVisibleTechs.value = [group.mainTechId, group.partnerTechId].filter(Boolean);
+    
+    // Wait for the DOM and computed properties to update
+    await nextTick();
+    
     selectedMainTech.value = group.mainTechId;
     selectedPartnerTech.value = group.partnerTechId || '';
     
@@ -283,6 +291,7 @@ const handleSubmit = () => {
 
   selectedMainTech.value = '';
   selectedPartnerTech.value = '';
+  forcedVisibleTechs.value = [];
   activityRows.value = [{ id: crypto.randomUUID(), rateCode: '', assigned: 0, completed: 0, observations: '' }];
   
   showNotification(`${savedCount} actividades registradas (${selectedDate.value})`, 'success');
