@@ -16,6 +16,15 @@ const { showNotification } = useNotifications();
 const globalStore = useGlobalStore();
 const { selectedDate } = storeToRefs(globalStore);
 
+// Helper for safe ID generation
+const generateId = () => {
+    try {
+        return crypto.randomUUID();
+    } catch (e) {
+        return Math.random().toString(36).substring(2, 15);
+    }
+};
+
 const isToday = computed(() => {
     const today = new Date().toISOString().split('T')[0];
     return selectedDate.value === today;
@@ -24,9 +33,8 @@ const isToday = computed(() => {
 // Form State
 const selectedMainTech = ref('');
 const selectedPartnerTech = ref('');
-const forcedVisibleTechs = ref([]);
 const activityRows = ref([
-  { id: crypto.randomUUID(), rateCode: '', assigned: 0, completed: 0, observations: '' }
+  { id: generateId(), rateCode: '', assigned: 0, completed: 0, observations: '' }
 ]);
 
 // Editing State
@@ -99,21 +107,38 @@ const busyTechIds = computed(() => {
 });
 
 const availableLeadTechs = computed(() => {
-  let available = operationalPersonnel.value.filter(p => 
-    !busyTechIds.value.has(p.id) || p.id === selectedMainTech.value || p.id === selectedPartnerTech.value || forcedVisibleTechs.value.includes(p.id)
-  );
-  if (selectedPartnerTech.value) {
-    available = available.filter(p => p.id !== selectedPartnerTech.value);
-  }
-  return available;
+  // We MUST always include the currently selected tech IDs to avoid the selector stripping them
+  // due to race conditions or "busy" status filtering.
+  return operationalPersonnel.value.filter(p => {
+    const isBusy = busyTechIds.value.has(p.id);
+    const isMain = p.id === selectedMainTech.value;
+    const isPartner = p.id === selectedPartnerTech.value;
+    
+    // Show if NOT busy OR if it's one of the currently selected ones
+    if (!isBusy || isMain || isPartner) {
+        // However, if we are looking for Lead, don't show the one already selected as Partner
+        if (selectedPartnerTech.value && p.id === selectedPartnerTech.value) return false;
+        return true;
+    }
+    return false;
+  });
 });
 
 const availablePartners = computed(() => {
   if (!selectedMainTech.value) return [];
-  let available = operationalPersonnel.value.filter(p => 
-    !busyTechIds.value.has(p.id) || p.id === selectedPartnerTech.value || p.id === selectedMainTech.value || forcedVisibleTechs.value.includes(p.id)
-  );
-  return available.filter(p => p.id !== selectedMainTech.value);
+  
+  return operationalPersonnel.value.filter(p => {
+    const isBusy = busyTechIds.value.has(p.id);
+    const isPartner = p.id === selectedPartnerTech.value;
+    const isMain = p.id === selectedMainTech.value;
+
+    if (!isBusy || isPartner || isMain) {
+        // Can't be the same person as Main
+        if (p.id === selectedMainTech.value) return false;
+        return true;
+    }
+    return false;
+  });
 });
 
 const pendingPersonnel = computed(() => {
@@ -150,30 +175,36 @@ const groupedActivities = computed(() => {
 
 // Actions
 const addActivityToGroup = async (group) => {
-    // Make sure the techs are visible in the lists BEFORE updating the selected models
-    // to prevent the <select> tag from stripping invalid values.
-    forcedVisibleTechs.value = [group.mainTechId, group.partnerTechId].filter(Boolean);
-    
-    // Wait for the DOM and computed properties to update
-    await nextTick();
-    
-    selectedMainTech.value = group.mainTechId;
-    selectedPartnerTech.value = group.partnerTechId || '';
-    
-    activityRows.value = [{ 
-      id: crypto.randomUUID(), 
-      rateCode: '', 
-      assigned: 0, 
-      completed: 0,
-      observations: ''
-    }];
+    try {
+        // 1. Assign selected techs
+        selectedMainTech.value = group.mainTechId || '';
+        selectedPartnerTech.value = group.partnerTechId || '';
+        
+        // 2. Clear rows and add a single clean one
+        activityRows.value = [{ 
+          id: generateId(), 
+          rateCode: '', 
+          assigned: 0, 
+          completed: 0,
+          observations: ''
+        }];
 
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+        // 3. Wait for DOM and computed list to catch up
+        await nextTick();
+
+        // 4. Scroll smoothly to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        console.log(`Add to group triggered for: ${group.mainTechName}`);
+    } catch (e) {
+        console.error("Error in addActivityToGroup:", e);
+        showNotification("Error al cargar técnicos del historial", "error");
+    }
 };
 
 const addRow = () => {
   activityRows.value.push({ 
-    id: crypto.randomUUID(), 
+    id: generateId(), 
     rateCode: '', 
     assigned: 0, 
     completed: 0,
@@ -291,8 +322,7 @@ const handleSubmit = () => {
 
   selectedMainTech.value = '';
   selectedPartnerTech.value = '';
-  forcedVisibleTechs.value = [];
-  activityRows.value = [{ id: crypto.randomUUID(), rateCode: '', assigned: 0, completed: 0, observations: '' }];
+  activityRows.value = [{ id: generateId(), rateCode: '', assigned: 0, completed: 0, observations: '' }];
   
   showNotification(`${savedCount} actividades registradas (${selectedDate.value})`, 'success');
   scrollToTop();
