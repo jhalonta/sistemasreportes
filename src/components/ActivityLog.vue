@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { AlertTriangle, X, Pencil, Trash2, Check } from 'lucide-vue-next';
+import { AlertTriangle, X, Pencil, Trash2, Check, PenLine, Plus, Users, ClipboardList, Save } from 'lucide-vue-next';
 import { personnel } from '../data/personnel';
 import { rates } from '../data/rates';
 import { useActivities } from '../composables/useActivities';
@@ -99,7 +99,7 @@ const busyTechIds = computed(() => {
 
 const availableLeadTechs = computed(() => {
   let available = operationalPersonnel.value.filter(p => 
-    !busyTechIds.value.has(p.id) || p.id === selectedMainTech.value
+    !busyTechIds.value.has(p.id) || p.id === selectedMainTech.value || p.id === selectedPartnerTech.value
   );
   if (selectedPartnerTech.value) {
     available = available.filter(p => p.id !== selectedPartnerTech.value);
@@ -110,7 +110,7 @@ const availableLeadTechs = computed(() => {
 const availablePartners = computed(() => {
   if (!selectedMainTech.value) return [];
   let available = operationalPersonnel.value.filter(p => 
-    !busyTechIds.value.has(p.id) || p.id === selectedPartnerTech.value
+    !busyTechIds.value.has(p.id) || p.id === selectedPartnerTech.value || p.id === selectedMainTech.value
   );
   return available.filter(p => p.id !== selectedMainTech.value);
 });
@@ -123,7 +123,6 @@ const groupedActivities = computed(() => {
     const groups = [];
     const map = new Map();
     
-    // Filter activities by selected date first
     const targetDate = selectedDate.value;
     const filtered = activities.value.filter(a => a.timestamp.startsWith(targetDate));
 
@@ -153,7 +152,6 @@ const addActivityToGroup = (group) => {
     selectedMainTech.value = group.mainTechId;
     selectedPartnerTech.value = group.partnerTechId || '';
     
-    // Reset activity rows to a single clean row
     activityRows.value = [{ 
       id: crypto.randomUUID(), 
       rateCode: '', 
@@ -162,7 +160,6 @@ const addActivityToGroup = (group) => {
       observations: ''
     }];
 
-    // Scroll smoothly to top of the page
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
@@ -295,863 +292,960 @@ const handleSubmit = () => {
 
 <template>
   <div class="activity-container">
-    <div class="loading-state" v-if="!rates || rates.length === 0">
+
+    <!-- Page Header -->
+    <div class="act-header">
+      <div class="header-info">
+        <h2 class="act-title">
+          <PenLine :size="28" class="title-icon" /> Registro de Producción
+        </h2>
+        <p class="act-subtitle">Asigna actividades a los técnicos y registra su avance diario.</p>
+      </div>
+      <div class="header-controls">
+        <div class="date-picker-wrap">
+          <label>Fecha</label>
+          <input type="date" v-model="selectedDate" class="date-input" />
+        </div>
+        <span class="mode-badge" v-if="!isToday">Modo Histórico</span>
+        <span class="close-badge">Cierre 18:00</span>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-state glass-panel" v-if="!rates || rates.length === 0">
       <p>Cargando datos de actividades...</p>
     </div>
 
-    <div class="activity-form glass-panel" v-else>
-      <header class="panel-header">
-          <div class="header-left">
-              <h2 class="section-title">Registro de Producción</h2>
-              <div class="date-display">
-                <input type="date" v-model="selectedDate" class="date-input-small" />
-                <span class="mode-badge" v-if="!isToday">Modo Histórico</span>
-              </div>
-          </div>
-          <span class="close-time">Cierre 18:00 PM</span>
-      </header>
-      
+    <template v-else>
+      <!-- Pending Alert -->
       <div v-if="pendingPersonnel.length > 0" class="pending-alert">
-        <span class="icon"><AlertTriangle :size="20" /></span> 
+        <AlertTriangle :size="20" />
         <span>Faltan reportar <strong>{{ pendingPersonnel.length }}</strong> técnicos</span>
       </div>
 
-      <form @submit.prevent="handleSubmit" class="main-form">
-        <!-- Tech Selection Section -->
-        <section class="tech-section">
-            <div class="form-group">
-              <label>Técnico Principal</label>
-              <div class="select-wrapper">
+      <!-- FORM CARD -->
+      <div class="form-card glass-panel">
+        <form @submit.prevent="handleSubmit">
+
+          <!-- Step 1: Team Selection -->
+          <div class="form-step">
+            <div class="step-header">
+              <span class="step-number">1</span>
+              <div>
+                <h3 class="step-title">Equipo de Trabajo</h3>
+                <p class="step-desc">Selecciona al técnico principal y su pareja si corresponde.</p>
+              </div>
+            </div>
+            <div class="tech-grid">
+              <div class="form-group">
+                <label><Users :size="14" /> Técnico Principal</label>
+                <div class="select-wrapper">
                   <select v-model="selectedMainTech" required>
                     <option disabled value="">Seleccionar Técnico</option>
                     <option v-for="p in availableLeadTechs" :key="p.id" :value="p.id">
                       {{ p.name }} ({{ p.role }})
                     </option>
                   </select>
+                </div>
               </div>
-            </div>
-
-            <div class="form-group">
-              <label>Pareja (Opcional)</label>
-              <div class="select-wrapper">
+              <div class="form-group">
+                <label><Users :size="14" /> Pareja (Opcional)</label>
+                <div class="select-wrapper">
                   <select v-model="selectedPartnerTech">
                     <option value="">Sin pareja</option>
                     <option v-for="p in availablePartners" :key="p.id" :value="p.id">
                       {{ p.name }}
                     </option>
                   </select>
+                </div>
               </div>
             </div>
-        </section>
+          </div>
 
-        <div class="divider"></div>
+          <div class="form-divider"></div>
 
-        <!-- Activities Rows -->
-        <section class="activities-section">
-            <div class="section-header">
-                <h3>Actividades Realizadas</h3>
+          <!-- Step 2: Activities -->
+          <div class="form-step">
+            <div class="step-header">
+              <span class="step-number">2</span>
+              <div>
+                <h3 class="step-title">Actividades Realizadas</h3>
+                <p class="step-desc">Agrega las partidas trabajadas con sus cantidades.</p>
+              </div>
             </div>
-            
+
             <transition-group name="list" tag="div" class="rows-container">
-                <div v-for="(row, index) in activityRows" :key="row.id" class="activity-row">
-                    <div class="row-header">
-                        <span class="row-number">Actividad {{ index + 1 }}</span>
-                        <button type="button" class="btn-icon remove" @click="removeRow(index)" v-if="activityRows.length > 1" title="Eliminar Fila">
-                            <X :size="16" />
-                        </button>
-                    </div>
-                    
-                    <div class="row-inputs">
-                        <div class="form-group full-width">
-                          <label v-if="index === 0">Tipo de Actividad</label>
-                          <div class="select-wrapper">
-                              <select v-model="row.rateCode" required>
-                                <option disabled value="">Seleccionar Actividad</option>
-                                <optgroup v-for="(group, category) in groupedRates" :key="category" :label="category">
-                                  <option v-for="rate in group" :key="rate.code" :value="rate.code">
-                                    {{ rate.code }} - {{ rate.name }} (S/ {{ rate.price.toFixed(2) }})
-                                  </option>
-                                </optgroup>
-                              </select>
-                          </div>
-                        </div>
-
-                        <div class="qty-grid">
-                            <div class="form-group">
-                              <label v-if="index === 0">Meta (Asignado)</label>
-                              <input type="number" v-model="row.assigned" min="0" placeholder="0" />
-                              <div class="mini-calc" v-if="row.rateCode">Est: S/ {{ (getRateInfo(row.rateCode)?.price * row.assigned).toFixed(2) }}</div>
-                            </div>
-
-                            <div class="form-group">
-                              <label v-if="index === 0">Avance (Realizado)</label>
-                              <input type="number" v-model="row.completed" min="0" placeholder="0" />
-                              <div class="mini-calc highlight" v-if="row.rateCode">Real: S/ {{ (getRateInfo(row.rateCode)?.price * row.completed).toFixed(2) }}</div>
-                            </div>
-                        </div>
-                    </div>
+              <div v-for="(row, index) in activityRows" :key="row.id" class="activity-row">
+                <div class="row-top">
+                  <span class="row-number">Actividad {{ index + 1 }}</span>
+                  <button type="button" class="btn-icon-sm remove" @click="removeRow(index)" v-if="activityRows.length > 1" title="Eliminar">
+                    <X :size="16" />
+                  </button>
                 </div>
+                <div class="row-body">
+                  <div class="form-group full-width">
+                    <label v-if="index === 0">Tipo de Actividad (Partida)</label>
+                    <div class="select-wrapper">
+                      <select v-model="row.rateCode" required>
+                        <option disabled value="">Seleccionar Actividad</option>
+                        <optgroup v-for="(group, category) in groupedRates" :key="category" :label="category">
+                          <option v-for="rate in group" :key="rate.code" :value="rate.code">
+                            {{ rate.code }} - {{ rate.name }} (S/ {{ rate.price.toFixed(2) }})
+                          </option>
+                        </optgroup>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="qty-grid">
+                    <div class="form-group">
+                      <label v-if="index === 0">Meta</label>
+                      <input type="number" v-model="row.assigned" min="0" placeholder="0" />
+                      <div class="mini-calc" v-if="row.rateCode">Est: S/ {{ (getRateInfo(row.rateCode)?.price * row.assigned).toFixed(2) }}</div>
+                    </div>
+                    <div class="form-group">
+                      <label v-if="index === 0">Avance</label>
+                      <input type="number" v-model="row.completed" min="0" placeholder="0" />
+                      <div class="mini-calc highlight" v-if="row.rateCode">Real: S/ {{ (getRateInfo(row.rateCode)?.price * row.completed).toFixed(2) }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </transition-group>
 
-            <button type="button" class="btn-secondary" @click="addRow">
-                + Agregar otra actividad
+            <button type="button" class="btn-add-row" @click="addRow">
+              <Plus :size="18" /> Agregar otra actividad
             </button>
-        </section>
-        
-        <section class="totals-section" v-if="totalProjected > 0 || totalRealized > 0">
-           <div class="total-card">
-             <span class="label">Proyección Total</span>
-             <span class="value">S/ {{ totalProjected }}</span>
-           </div>
-           <div class="total-card real">
-             <span class="label">Total Realizado</span>
-             <span class="value">S/ {{ totalRealized }}</span>
-           </div>
-        </section>
+          </div>
 
-        <button type="submit" class="btn-primary-large">
-            Registrar Toda la Producción
-        </button>
-      </form>
-    </div>
+          <div class="form-divider"></div>
 
-    <!-- Activity List History -->
-    <div class="activity-history glass-panel">
-      <h3>Producción Reciente (Hoy)</h3>
-      <div v-if="activities.length === 0" class="empty-state">
-        No hay registros hoy.
+          <!-- Step 3: Totals & Submit -->
+          <div class="form-step">
+            <div class="step-header">
+              <span class="step-number">3</span>
+              <div>
+                <h3 class="step-title">Resumen y Registro</h3>
+                <p class="step-desc">Verifica los totales y confirma el registro.</p>
+              </div>
+            </div>
+
+            <div class="totals-row" v-if="totalProjected > 0 || totalRealized > 0">
+              <div class="total-card">
+                <span class="total-label">Proyección Total</span>
+                <span class="total-value">S/ {{ totalProjected }}</span>
+              </div>
+              <div class="total-card real">
+                <span class="total-label">Total Realizado</span>
+                <span class="total-value">S/ {{ totalRealized }}</span>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+              <Save :size="20" /> Registrar Toda la Producción
+            </button>
+          </div>
+
+        </form>
       </div>
-      <ul v-else class="history-list">
-        <li v-for="group in groupedActivities" :key="group.id" class="history-item group-card">
+
+      <!-- HISTORY SECTION -->
+      <div class="history-section glass-panel">
+        <h3 class="history-title">
+          <ClipboardList :size="22" /> Producción Reciente
+        </h3>
+        <div v-if="groupedActivities.length === 0" class="empty-state">
+          No hay registros para esta fecha.
+        </div>
+        <ul v-else class="history-list">
+          <li v-for="group in groupedActivities" :key="group.id" class="group-card">
             <div class="group-header">
-                <div class="tech-info">
-                    <span class="tech-name main">{{ group.mainTechName }}</span>
-                    <span v-if="group.partnerTechName" class="tech-name partner">+ {{ group.partnerTechName }}</span>
-                </div>
-                <div class="group-actions">
-                    <span class="time-badge">{{ formatDate(group.timestamp) }}</span>
-                    <button type="button" class="btn-group-add" @click="addActivityToGroup(group)" title="Agregar actividad a este grupo">
-                        + Agregar
-                    </button>
-                </div>
+              <div class="tech-info">
+                <span class="tech-tag main">{{ group.mainTechName }}</span>
+                <span v-if="group.partnerTechName" class="tech-tag partner">+ {{ group.partnerTechName }}</span>
+              </div>
+              <div class="group-meta">
+                <span class="time-badge">{{ formatDate(group.timestamp) }}</span>
+                <button type="button" class="btn-group-add" @click="addActivityToGroup(group)" title="Agregar actividad a este grupo">
+                  <Plus :size="14" /> Agregar
+                </button>
+              </div>
             </div>
 
             <div class="group-body">
-                <div v-for="activity in group.items" :key="activity.id" class="activity-line">
-                    
-                    <!-- Standard View -->
-                    <div v-if="editingId !== activity.id" class="activity-content">
-                        <div class="activity-info">
-                            <p class="description">{{ activity.description }}</p>
-                            <p v-if="activity.observations" class="observations-text"><small><em>Obs: {{ activity.observations }}</em></small></p>
-                            <div class="stats-mini" :style="activity.observations ? 'margin-top: 0.5rem;' : ''">
-                                <span class="stat-pill">Meta: <strong>{{ activity.assigned }}</strong> <small class="text-muted">S/ {{ activity.projectedValue || '0.00' }}</small></span>
-                                <span class="stat-pill">Real: <strong>{{ activity.completed }}</strong> <small class="text-success">S/ {{ activity.realizedValue || activity.totalValue || '0.00' }}</small></span>
-                            </div>
-                        </div>
-                        <div class="actions">
-                            <button @click="startEditing(activity)" class="btn-icon edit" title="Editar Cantidades"><Pencil :size="16" /></button>
-                            <button @click="requestDelete(activity.id)" class="btn-icon delete" title="Eliminar Actividad"><Trash2 :size="16" /></button>
-                        </div>
-                    </div>
+              <div v-for="activity in group.items" :key="activity.id" class="activity-line">
 
-                    <!-- Edit Mode -->
-                    <div v-else class="edit-mode inline">
-                        <div class="edit-grid compact edit-full">
-                            <div class="form-group full-width-edit">
-                                <label>Partida (Actividad)</label>
-                                <select v-model="editForm.rateCode" required class="edit-select">
-                                    <optgroup v-for="(group, category) in groupedRates" :key="category" :label="category">
-                                      <option v-for="rate in group" :key="rate.code" :value="rate.code">
-                                        {{ rate.code }} - {{ rate.name }} (S/ {{ rate.price.toFixed(2) }})
-                                      </option>
-                                    </optgroup>
-                                </select>
-                            </div>
-                            <div class="qty-group-edit">
-                                <div class="form-group">
-                                    <label>Meta</label>
-                                    <input type="number" v-model="editForm.assigned" min="0">
-                                </div>
-                                 <div class="form-group">
-                                    <label>Real</label>
-                                    <input type="number" v-model="editForm.completed" min="0">
-                                </div>
-                            </div>
-                            <div class="form-group full-width-edit" style="margin-top: 0.5rem;">
-                                <label>Observaciones</label>
-                                <input type="text" v-model="editForm.observations" placeholder="Opcional" style="width: 100%; border-radius: 8px;">
-                            </div>
-                        </div>
-                        <div class="edit-actions">
-                             <button @click="cancelEditing" class="btn-small secondary"><X :size="16" /></button>
-                             <button @click="saveEdit(activity)" class="btn-small primary"><Check :size="16" /></button>
-                        </div>
+                <!-- Standard View -->
+                <div v-if="editingId !== activity.id" class="activity-content">
+                  <div class="activity-info">
+                    <p class="description">{{ activity.description }}</p>
+                    <p v-if="activity.observations" class="observations-text"><em>Obs: {{ activity.observations }}</em></p>
+                    <div class="stats-mini">
+                      <span class="stat-pill">Meta: <strong>{{ activity.assigned }}</strong> <small class="text-muted">S/ {{ activity.projectedValue || '0.00' }}</small></span>
+                      <span class="stat-pill real">Real: <strong>{{ activity.completed }}</strong> <small>S/ {{ activity.realizedValue || activity.totalValue || '0.00' }}</small></span>
                     </div>
-
+                  </div>
+                  <div class="line-actions">
+                    <button @click="startEditing(activity)" class="btn-icon-action edit" title="Editar"><Pencil :size="16" /></button>
+                    <button @click="requestDelete(activity.id)" class="btn-icon-action delete" title="Eliminar"><Trash2 :size="16" /></button>
+                  </div>
                 </div>
+
+                <!-- Edit Mode -->
+                <div v-else class="edit-mode">
+                  <div class="edit-fields">
+                    <div class="form-group full-width">
+                      <label>Partida</label>
+                      <select v-model="editForm.rateCode" required class="edit-select">
+                        <optgroup v-for="(grp, category) in groupedRates" :key="category" :label="category">
+                          <option v-for="rate in grp" :key="rate.code" :value="rate.code">
+                            {{ rate.code }} - {{ rate.name }} (S/ {{ rate.price.toFixed(2) }})
+                          </option>
+                        </optgroup>
+                      </select>
+                    </div>
+                    <div class="edit-qty-row">
+                      <div class="form-group">
+                        <label>Meta</label>
+                        <input type="number" v-model="editForm.assigned" min="0">
+                      </div>
+                      <div class="form-group">
+                        <label>Real</label>
+                        <input type="number" v-model="editForm.completed" min="0">
+                      </div>
+                    </div>
+                    <div class="form-group full-width">
+                      <label>Observaciones</label>
+                      <input type="text" v-model="editForm.observations" placeholder="Opcional">
+                    </div>
+                  </div>
+                  <div class="edit-actions">
+                    <button @click="cancelEditing" class="btn-sm cancel"><X :size="16" /></button>
+                    <button @click="saveEdit(activity)" class="btn-sm save"><Check :size="16" /></button>
+                  </div>
+                </div>
+
+              </div>
             </div>
-        </li>
-      </ul>
-    </div>
+          </li>
+        </ul>
+      </div>
+    </template>
   </div>
 
-  <!-- Custom Delete Modal -->
+  <!-- Delete Modal -->
   <Transition name="fade">
-      <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
-          <div class="modal-card">
-              <div class="modal-icon"><AlertTriangle :size="48" stroke-width="1.5" style="margin-top: 15px;" /></div>
-              <h3>¿Eliminar registro?</h3>
-              <p>Esta acción no se puede deshacer.</p>
-              <div class="modal-actions">
-                  <button class="btn-modal secondary" @click="closeDeleteModal">Cancelar</button>
-                  <button class="btn-modal danger" @click="confirmDelete">Sí, Eliminar</button>
-              </div>
-          </div>
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
+      <div class="modal-card">
+        <div class="modal-icon"><AlertTriangle :size="48" stroke-width="1.5" /></div>
+        <h3>¿Eliminar registro?</h3>
+        <p>Esta acción no se puede deshacer.</p>
+        <div class="modal-actions">
+          <button class="btn-modal secondary" @click="closeDeleteModal">Cancelar</button>
+          <button class="btn-modal danger" @click="confirmDelete">Sí, Eliminar</button>
+        </div>
       </div>
+    </div>
   </Transition>
 </template>
 
 <style scoped>
+/* ── Layout ── */
 .activity-container {
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
   color: var(--text-main);
 }
 
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  box-shadow: var(--glass-shadow);
-  border-radius: var(--radius-xl);
-  padding: 2.5rem;
-  transition: var(--tr);
+/* ── Header ── */
+.act-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1.5rem;
 }
 
-.panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 2rem;
-    border-bottom: 2px solid var(--border-2);
-    padding-bottom: 1rem;
+.header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-.header-left {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.date-display {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.date-input-small {
-    padding: 0.25rem 0.5rem;
-    border: 1px solid var(--border-2);
-    border-radius: 6px;
-    font-size: 0.9rem;
-    color: var(--text-main);
-    background: var(--bg-input);
-}
-
-.mode-badge {
-    font-size: 0.75rem;
-    background: var(--warning-bg);
-    color: var(--warning-fg);
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    font-weight: 700;
-}
-
-.section-title {
+.act-title {
+  margin: 0;
   font-size: 1.8rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  font-weight: 800;
+}
+
+.title-icon {
+  color: #6366f1;
+  -webkit-text-fill-color: initial;
+}
+
+.act-subtitle {
   margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-muted, #64748b);
 }
 
-.close-time {
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    font-weight: 600;
-    background: var(--info-bg);
-    padding: 0.25rem 0.75rem;
-    border-radius: 99px;
+.header-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
 }
 
+.date-picker-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.date-picker-wrap label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #64748b);
+}
+
+.date-input {
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--border-2, #cbd5e1);
+  background: var(--bg-input, white);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.mode-badge {
+  font-size: 0.75rem;
+  background: #fef3c7;
+  color: #d97706;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.close-badge {
+  font-size: 0.75rem;
+  background: #eff6ff;
+  color: #3b82f6;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+/* ── Glass Panel ── */
+.glass-panel {
+  background: var(--glass-bg, rgba(255,255,255,0.7));
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow, 0 4px 20px rgba(0,0,0,0.06));
+  backdrop-filter: blur(12px);
+}
+
+/* ── Pending Alert ── */
 .pending-alert {
   background: #fffbeb;
   color: #b45309;
-  padding: 1rem;
+  padding: 1rem 1.5rem;
   border-radius: 12px;
   border: 1px solid #fcd34d;
-  margin-bottom: 2rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 0.9rem;
 }
 
-.tech-section {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
+/* ── Form Card ── */
+.form-card {
+  padding: 2rem;
 }
 
-.divider {
-    height: 1px;
-    background: linear-gradient(to right, transparent, #e2e8f0, transparent);
-    margin: 2rem 0;
+.form-step {
+  margin-bottom: 0.5rem;
 }
 
-.section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
+.step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
-.section-header h3 {
-    margin: 0;
-    font-size: 1.2rem;
-    color: #475569;
+.step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+  flex-shrink: 0;
 }
 
-.badge {
-    background: #e0e7ff;
-    color: #4338ca;
-    font-size: 0.8rem;
-    font-weight: 700;
-    padding: 0.1rem 0.5rem;
-    border-radius: 99px;
+.step-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
 }
 
-.activity-row {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    position: relative;
-    transition: all 0.2s ease;
+.step-desc {
+  margin: 0.15rem 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted, #64748b);
 }
 
-.activity-row:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+.form-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border-2, #e2e8f0), transparent);
+  margin: 1.5rem 0;
 }
 
-.row-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 1rem;
+/* ── Tech Grid ── */
+.tech-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
 }
 
-.row-number {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 700;
-    color: #94a3b8;
-}
-
-.btn-icon.remove {
-    background: transparent;
-    border: none;
-    color: #ef4444;
-    cursor: pointer;
-    font-size: 1.1rem;
-    padding: 0;
-    opacity: 0.6;
-    transition: all 0.2s;
-}
-
-.btn-icon.remove:hover {
-    opacity: 1;
-    transform: scale(1.1);
-}
-
-.row-inputs {
-    display: grid;
-    grid-template-columns: 2fr 1.5fr;
-    gap: 1.5rem;
-}
-
-.qty-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
-
+/* ── Form Groups ── */
 .form-group label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #64748b;
-    margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-.select-wrapper {
-    position: relative;
-}
-
-select, input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    font-size: 0.95rem;
-    background: white;
-    transition: all 0.2s;
-    color: #1e293b;
+select, input[type="number"], input[type="text"] {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1.5px solid var(--border-2, #cbd5e1);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background: var(--bg-input, white);
+  transition: all 0.2s;
+  color: var(--text-main, #1e293b);
 }
 
 select:focus, input:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* ── Activity Rows ── */
+.activity-row {
+  background: var(--bg-card-2, #f8fafc);
+  border: 1px solid var(--border-2, #e2e8f0);
+  border-radius: 14px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+}
+
+.activity-row:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+
+.row-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.row-number {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.btn-icon-sm.remove {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.btn-icon-sm.remove:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.row-body {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr;
+  gap: 1.5rem;
+}
+
+.qty-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
 }
 
 .mini-calc {
-    font-size: 0.75rem;
-    text-align: right;
-    margin-top: 0.4rem;
-    font-weight: 600;
-    color: #94a3b8;
+  font-size: 0.75rem;
+  text-align: right;
+  margin-top: 0.35rem;
+  font-weight: 600;
+  color: #94a3b8;
 }
 
 .mini-calc.highlight {
-    color: #10b981;
+  color: #10b981;
 }
 
-.btn-secondary {
-    width: 100%;
-    padding: 1rem;
-    background: #fff;
-    border: 2px dashed #cbd5e1;
-    color: #64748b;
-    border-radius: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-top: 0.5rem;
+.btn-add-row {
+  width: 100%;
+  padding: 0.85rem;
+  background: transparent;
+  border: 2px dashed var(--border-2, #cbd5e1);
+  color: var(--text-muted, #64748b);
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
 }
 
-.btn-secondary:hover {
-    border-color: #6366f1;
-    color: #6366f1;
-    background: #eef2ff;
+.btn-add-row:hover {
+  border-color: #6366f1;
+  color: #6366f1;
+  background: #eef2ff;
 }
 
-.activities-section {
-    margin-bottom: 2rem;
-}
-
-.totals-section {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-    margin: 2rem 0;
-    padding: 1.5rem;
-    background: #f8fafc;
-    border-radius: 16px;
+/* ── Totals ── */
+.totals-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .total-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1.25rem;
+  background: var(--bg-card-2, #f8fafc);
+  border-radius: 12px;
 }
 
-.total-card .label {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    color: #64748b;
-    font-weight: 600;
+.total-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--text-muted, #64748b);
+  font-weight: 700;
 }
 
-.total-card .value {
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: #334155;
+.total-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-main, #334155);
 }
 
-.total-card.real .value {
-    color: #10b981;
+.total-card.real .total-value {
+  color: #10b981;
 }
 
-.btn-primary-large {
-    width: 100%;
-    padding: 1.25rem;
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-    color: white;
-    border: none;
-    border-radius: 16px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-    transition: all 0.3s;
+/* ── Submit ── */
+.btn-submit {
+  width: 100%;
+  padding: 1.1rem;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
 }
 
-.btn-primary-large:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+.btn-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(79, 70, 229, 0.4);
 }
 
-/* History List Styles */
+/* ── History Section ── */
+.history-section {
+  padding: 2rem;
+}
+
+.history-title {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.empty-state {
+  text-align: center;
+  color: #94a3b8;
+  padding: 2rem;
+  font-style: italic;
+}
+
 .history-list {
-    list-style: none;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.history-item.group-card {
-    background: white;
-    border: 1px solid #f1f5f9;
-    border-radius: 12px;
-    padding: 0;
-    overflow: hidden;
-    transition: transform 0.2s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+.group-card {
+  background: var(--bg-card, white);
+  border: 1px solid var(--border-2, #f1f5f9);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s;
 }
 
-.history-item:hover {
-    border-color: #cbd5e1;
+.group-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
 }
 
 .group-header {
-    background: #f8fafc;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid #f1f5f9;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  background: var(--bg-card-2, #f8fafc);
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-2, #f1f5f9);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-.group-actions {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+.tech-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.btn-group-add {
-    background: transparent;
-    border: 1px dashed #6366f1;
-    color: #6366f1;
-    padding: 0.3rem 0.6rem;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
+.tech-tag {
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 8px;
 }
 
-.btn-group-add:hover {
-    background: #e0e7ff;
-    border-style: solid;
+.tech-tag.main {
+  background: #eff6ff;
+  color: #2563eb;
 }
 
-.group-body {
-    padding: 0.5rem 0;
+.tech-tag.partner {
+  background: #fdf2f8;
+  color: #db2777;
 }
 
-.activity-line {
-    padding: 0.75rem 1.25rem;
-    border-bottom: 1px dashed #e2e8f0;
-}
-
-.activity-line:last-child {
-    border-bottom: none;
-}
-
-.activity-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-}
-
-.activity-info {
-    flex: 1;
-}
-
-.description {
-    font-size: 0.95rem;
-    margin: 0 0 0.4rem 0;
-    color: #334155;
-    font-weight: 500;
-}
-
-.observations-text {
-    font-size: 0.85rem;
-    color: #64748b;
-    margin: 0 0 0.5rem 0;
-}
-
-.stats-mini {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.85rem;
-}
-
-.stat-pill {
-    background: #f1f5f9;
-    padding: 0.2rem 0.6rem;
-    border-radius: 6px;
-    color: #64748b;
-}
-
-.text-muted { color: #94a3b8; font-weight: normal; margin-left: 4px; }
-.text-success { color: #10b981; font-weight: bold; margin-left: 4px; }
-
-.tech-name {
-    font-size: 0.9rem;
-    font-weight: 700;
-    padding: 0.25rem 0.75rem;
-    border-radius: 6px;
-}
-
-.tech-name.main {
-    background: #eff6ff;
-    color: #2563eb;
-}
-
-.tech-name.partner {
-    background: #fdf2f8;
-    color: #db2777;
-    margin-left: 0.5rem;
+.group-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .time-badge {
-    font-size: 0.75rem;
-    color: #94a3b8;
-    font-weight: 600;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 600;
 }
 
-.actions {
-    display: flex;
-    gap: 0.5rem;
+.btn-group-add {
+  background: transparent;
+  border: 1px dashed #6366f1;
+  color: #6366f1;
+  padding: 0.3rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
-.btn-icon {
-    border: none;
-    background: #f1f5f9;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
+.btn-group-add:hover {
+  background: #e0e7ff;
+  border-style: solid;
 }
 
-.btn-icon.edit:hover { background: #e0e7ff; color: #4338ca; }
-.btn-icon.delete:hover { background: #fee2e2; color: #ef4444; }
+.group-body { padding: 0.25rem 0; }
 
-.edit-mode.inline {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    background: #f8fafc;
-    padding: 0.5rem;
-    border-radius: 8px;
+.activity-line {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px dashed var(--border-2, #e2e8f0);
 }
 
-.edit-grid.compact {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    width: 100%;
+.activity-line:last-child { border-bottom: none; }
+
+.activity-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
 }
 
-.edit-grid.compact.edit-full {
-    flex: 1;
+.activity-info { flex: 1; }
+
+.description {
+  font-size: 0.92rem;
+  margin: 0 0 0.3rem 0;
+  color: var(--text-main, #334155);
+  font-weight: 600;
 }
 
-.qty-group-edit {
-    display: flex;
-    gap: 1rem;
+.observations-text {
+  font-size: 0.82rem;
+  color: var(--text-muted, #64748b);
+  margin: 0 0 0.4rem 0;
 }
 
-.edit-grid.compact .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
+.stats-mini {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+  flex-wrap: wrap;
 }
 
-.full-width-edit {
-    width: 100%;
+.stat-pill {
+  background: #f1f5f9;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  color: #64748b;
+}
+
+.stat-pill.real {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.text-muted { color: #94a3b8; font-weight: normal; margin-left: 4px; }
+
+.line-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-icon-action {
+  border: none;
+  background: #f1f5f9;
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: #64748b;
+}
+
+.btn-icon-action.edit:hover { background: #e0e7ff; color: #4338ca; }
+.btn-icon-action.delete:hover { background: #fee2e2; color: #ef4444; }
+
+/* ── Edit Mode ── */
+.edit-mode {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--bg-card-2, #f8fafc);
+  padding: 1rem;
+  border-radius: 10px;
+}
+
+.edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
 }
 
 .edit-select {
-    width: 100%;
-    padding: 0.5rem;
-    font-size: 0.9rem;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-2, #cbd5e1);
 }
 
-.edit-grid.compact input {
-    width: 100px;
-    padding: 0.5rem;
-    font-size: 0.9rem;
+.edit-qty-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.edit-qty-row input {
+  width: 100px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.9rem;
 }
 
 .edit-actions {
-    display: flex;
-    gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
 }
 
-.btn-small {
-    padding: 0.4rem 0.8rem;
-    border-radius: 6px;
-    border: none;
-    font-weight: bold;
-    cursor: pointer;
-    font-size: 0.8rem;
+.btn-sm {
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
 }
 
-.btn-small.primary { background: #10b981; color: white; }
-.btn-small.secondary { background: #e2e8f0; color: #64748b; }
+.btn-sm.save { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+.btn-sm.save:hover { transform: translateY(-1px); }
+.btn-sm.cancel { background: #e2e8f0; color: #64748b; }
+.btn-sm.cancel:hover { background: #cbd5e1; }
 
-.edit-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.btn-small {
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-}
-
-.btn-small.primary { background: #4f46e5; color: white; }
-.btn-small.secondary { background: white; border: 1px solid #cbd5e1; color: #64748b; margin-right: 0.5rem; }
-
-/* MODAL STYLES */
+/* ── Modal ── */
 .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }
 
 .modal-card {
-    background: white;
-    padding: 2rem;
-    border-radius: 20px;
-    width: 90%;
-    max-width: 400px;
-    text-align: center;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    animation: modal-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  background: white;
+  padding: 2rem;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  animation: modal-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .modal-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    background: #fee2e2;
-    width: 80px;
-    height: 80px;
-    line-height: 80px;
-    border-radius: 50%;
-    margin: 0 auto 1.5rem auto;
-    color: #ef4444;
+  background: #fee2e2;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin: 0 auto 1.5rem auto;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-card h3 {
-    margin: 0 0 0.5rem 0;
-    color: #1f2937;
-    font-size: 1.5rem;
+  margin: 0 0 0.5rem 0;
+  color: #1f2937;
+  font-size: 1.4rem;
 }
 
 .modal-card p {
-    color: #6b7280;
-    margin-bottom: 2rem;
+  color: #6b7280;
+  margin-bottom: 2rem;
 }
 
 .modal-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
 }
 
 .btn-modal {
-    padding: 0.75rem 1.5rem;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    font-size: 1rem;
-    transition: all 0.2s;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  font-size: 0.95rem;
+  transition: all 0.2s;
 }
 
-.btn-modal.secondary {
-    background: #f3f4f6;
-    color: #4b5563;
-}
-
-.btn-modal.secondary:hover {
-    background: #e5e7eb;
-}
-
-.btn-modal.danger {
-    background: #ef4444;
-    color: white;
-}
-
-.btn-modal.danger:hover {
-    background: #dc2626;
-    transform: translateY(-1px);
-}
+.btn-modal.secondary { background: #f3f4f6; color: #4b5563; }
+.btn-modal.secondary:hover { background: #e5e7eb; }
+.btn-modal.danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 12px rgba(239,68,68,0.25); }
+.btn-modal.danger:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(239,68,68,0.35); }
 
 @keyframes modal-pop {
-    0% { transform: scale(0.9); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* ── Loading ── */
+.loading-state {
+  padding: 3rem;
+  text-align: center;
+  color: #94a3b8;
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
+/* ── Responsive ── */
 @media (max-width: 768px) {
-    .glass-panel { padding: 1.5rem; }
-    .tech-section, .row-inputs { grid-template-columns: 1fr; }
-    .totals-section { grid-template-columns: 1fr; }
+  .act-header { flex-direction: column; align-items: flex-start; }
+  .header-controls { flex-wrap: wrap; }
+  .tech-grid, .row-body { grid-template-columns: 1fr; }
+  .totals-row { grid-template-columns: 1fr; }
+  .form-card { padding: 1.5rem; }
+  .qty-grid { grid-template-columns: 1fr; }
 }
 </style>

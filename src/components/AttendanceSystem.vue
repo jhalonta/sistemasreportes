@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Printer, Ban } from 'lucide-vue-next';
+import { Printer, Ban, ClipboardCheck, UserCheck, CircleCheck, CircleX, Clock } from 'lucide-vue-next';
 import { personnel } from '../data/personnel';
 import { useAttendance } from '../composables/useAttendance';
 import { useNotifications } from '../composables/useNotifications';
@@ -100,7 +100,6 @@ const handleMarkAbsent = async (personId) => {
 };
 
 const handleMarkAll = async () => {
-    // Confirm? Maybe not needed for now, but good practice
     const result = await markAll(personnel, selectedDate.value);
     showNotification(result.message, result.success ? 'success' : 'error');
 };
@@ -108,43 +107,50 @@ const handleMarkAll = async () => {
 
 <template>
   <div class="attendance-container">
-    <header class="header glass-panel">
-      <h1 class="title">Registro de Asistencia</h1>
-      
-      <div class="clock-display">
-        <div class="date-selector">
-            <label>Fecha de Registro:</label>
-            <div class="date-controls">
-                <input type="date" v-model="selectedDate" class="date-input" />
-                <button @click="printMonthlyReport" class="btn-primary" title="Imprimir Reporte Mensual PDF" style="display: flex; align-items: center; gap: 8px;">
-                    <Printer :size="18" /> PDF Mensual
-                </button>
-            </div>
-        </div>
 
-        <div class="time-wrapper" v-if="isToday">
-          <span class="time">{{ formattedTime }}</span>
-          <span class="date">{{ formattedDate }}</span>
-        </div>
-        
-        <div class="actions-wrapper">
-             <div class="status-badge" :class="{ 'open': isWithinSchedule, 'closed': !isWithinSchedule }" v-if="isToday">
-              <span class="status-dot"></span>
-              {{ isWithinSchedule ? 'SISTEMA ABIERTO' : 'SISTEMA CERRADO' }}
-            </div>
-            <div class="status-badge manual" v-else>
-                <span class="status-dot"></span>
-                MODO HISTÓRICO
-            </div>
-            
-            <button v-if="isToday && isWithinSchedule" @click="handleMarkAll" class="btn-mark-all">
-                Marcar Todos (Presente)
-            </button>
+    <!-- Page Header -->
+    <div class="att-header">
+      <div class="header-info">
+        <h2 class="att-title">
+          <ClipboardCheck :size="28" class="title-icon" /> Registro de Asistencia
+        </h2>
+        <div class="time-row" v-if="isToday">
+          <span class="live-time">{{ formattedTime }}</span>
+          <span class="live-date">{{ formattedDate }}</span>
         </div>
       </div>
-    </header>
+      <div class="header-controls">
+        <div class="date-picker-wrap">
+          <label>Fecha de Registro</label>
+          <input type="date" v-model="selectedDate" class="date-input" />
+        </div>
+        <button @click="printMonthlyReport" class="btn-action btn-print-pdf" title="Imprimir Reporte Mensual PDF">
+          <Printer :size="18" /> PDF Mensual
+        </button>
+      </div>
+    </div>
 
-    <main class="staff-list-container glass-panel">
+    <!-- Status & Actions Bar -->
+    <div class="status-bar glass-panel">
+      <div class="status-left">
+        <div class="status-badge" :class="{ 'open': isWithinSchedule, 'closed': !isWithinSchedule }" v-if="isToday">
+          <span class="status-dot"></span>
+          {{ isWithinSchedule ? 'SISTEMA ABIERTO' : 'SISTEMA CERRADO' }}
+        </div>
+        <div class="status-badge manual" v-else>
+          <span class="status-dot"></span>
+          MODO HISTÓRICO
+        </div>
+      </div>
+      <div class="status-right">
+        <button v-if="isToday && isWithinSchedule" @click="handleMarkAll" class="btn-action btn-mark-all">
+          <UserCheck :size="18" /> Marcar Todos
+        </button>
+      </div>
+    </div>
+
+    <!-- Staff Table -->
+    <div class="staff-table-wrap glass-panel">
       <div class="table-responsive">
         <table>
           <thead>
@@ -166,26 +172,26 @@ const handleMarkAll = async () => {
               <td class="role-cell">{{ person.role }}</td>
               <td>
                 <div v-if="getStatus(person.id, selectedDate)?.status === 'Presente'" class="status-pill present">
-                  Presente
+                  <CircleCheck :size="14" /> Presente
                 </div>
                 <div v-else-if="getStatus(person.id, selectedDate)?.status === 'Falta'" class="status-pill absent">
-                  Falta
+                  <CircleX :size="14" /> Falta
                 </div>
                 <div v-else class="status-pill pending">
-                  Pendiente
+                  <Clock :size="14" /> Pendiente
                 </div>
               </td>
               <td class="actions-cell">
-                <button 
-                  @click="toggleAttendance(person.id)" 
+                <button
+                  @click="toggleAttendance(person.id)"
                   :disabled="isToday && !isWithinSchedule"
                   class="btn-checkin"
                   :class="{ 'btn-danger': getStatus(person.id, selectedDate) }"
                 >
                   {{ getStatus(person.id, selectedDate) ? 'Desmarcar' : 'Marcar' }}
                 </button>
-                
-                <button 
+
+                <button
                     v-if="!getStatus(person.id, selectedDate)"
                     @click="handleMarkAbsent(person.id)"
                     :disabled="isToday && !isWithinSchedule"
@@ -199,7 +205,7 @@ const handleMarkAll = async () => {
           </tbody>
         </table>
       </div>
-    </main>
+    </div>
 
     <!-- Printable Area (Hidden on Screen) -->
     <div class="print-sheet screen-hidden">
@@ -209,9 +215,9 @@ const handleMarkAll = async () => {
                 <p><strong>RUC:</strong> 20612913766</p>
                 <p><strong>DIRECCIÓN:</strong> AV. SALAVERRY N° 2415 INT. 202 - SAN ISIDRO - LIMA</p>
             </div>
-            
+
             <h2 class="report-title">
-                REPORTE GENERAL DE ASISTENCIA MENSUAL 
+                REPORTE GENERAL DE ASISTENCIA MENSUAL
                 - {{ selectedDate ? selectedDate.split('-')[1] + '/' + selectedDate.split('-')[0] : '' }}
             </h2>
         </header>
@@ -254,74 +260,145 @@ const handleMarkAll = async () => {
 </template>
 
 <style scoped>
+/* ── Layout ── */
 .attendance-container {
   width: 100%;
-  max-width: 1000px;
+  max-width: 1400px;
   margin: 0 auto;
-  font-family: 'Inter', sans-serif;
   color: var(--text-main);
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-}
-
-/* Glassmorphism Common */
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  border-radius: 16px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-}
-
-.header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   gap: 1.5rem;
 }
 
-.title {
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0;
-  background: var(--primary-gradient);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+/* ── Header ── */
+.att-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1.5rem;
 }
 
-.clock-display {
+.header-info {
   display: flex;
   flex-direction: column;
+  gap: 0.35rem;
+}
+
+.att-title {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+  display: flex;
   align-items: center;
+  gap: 0.6rem;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.title-icon {
+  color: #6366f1;
+  -webkit-text-fill-color: initial;
+}
+
+.time-row {
+  display: flex;
+  align-items: baseline;
   gap: 1rem;
 }
 
-.time-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.time {
-  font-size: 3.5rem;
+.live-time {
+  font-size: 2rem;
   font-weight: 800;
-  line-height: 1;
-  color: #334155;
+  color: var(--text-main, #334155);
   font-variant-numeric: tabular-nums;
 }
 
-.date {
-  font-size: 1.1rem;
-  color: var(--text-muted);
+.live-date {
+  font-size: 0.95rem;
+  color: var(--text-muted, #64748b);
   text-transform: capitalize;
-  margin-top: 0.5rem;
+}
+
+.header-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.date-picker-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.date-picker-wrap label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #64748b);
+}
+
+.date-input {
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--border-2, #cbd5e1);
+  background: var(--bg-input, white);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* ── Action Buttons ── */
+.btn-action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn-print-pdf {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.btn-print-pdf:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.35);
+}
+
+/* ── Status Bar ── */
+.glass-panel {
+  background: var(--glass-bg, rgba(255,255,255,0.7));
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow, 0 4px 20px rgba(0,0,0,0.06));
+  backdrop-filter: blur(12px);
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .status-badge {
@@ -330,10 +407,9 @@ const handleMarkAll = async () => {
   gap: 0.5rem;
   padding: 0.5rem 1.25rem;
   border-radius: 999px;
-  font-weight: 600;
-  font-size: 0.875rem;
+  font-weight: 700;
+  font-size: 0.8rem;
   letter-spacing: 0.5px;
-  transition: all 0.3s ease;
 }
 
 .status-dot {
@@ -350,60 +426,24 @@ const handleMarkAll = async () => {
   100% { opacity: 1; transform: scale(1); }
 }
 
-.status-badge.open {
-  background-color: var(--success-bg);
-  color: #059669;
+.status-badge.open { background-color: var(--success-bg, #d1fae5); color: #059669; }
+.status-badge.closed { background-color: var(--danger-bg, #fee2e2); color: #dc2626; }
+.status-badge.manual { background-color: #fef3c7; color: #d97706; }
+
+.btn-mark-all {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16,185,129,0.25);
 }
 
-.status-badge.closed {
-  background-color: var(--danger-bg);
-  color: #dc2626;
+.btn-mark-all:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(16,185,129,0.35);
 }
 
-.status-badge.manual {
-    background-color: #fef3c7;
-    color: #d97706;
-}
-
-.date-selector {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.date-selector label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #64748b;
-}
-
-.date-controls {
-    display: flex;
-    gap: 0.5rem;
-    align-items: stretch;
-}
-
-.date-input {
-    background-color: white;
-    padding: 0.5rem 1rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    font-size: 1rem;
-    color: #334155;
-    outline: none;
-    transition: all 0.2s;
-}
-
-.date-input:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-/* Table Styles */
-.staff-list-container {
-  padding: 0; /* Let table fill */
+/* ── Table ── */
+.staff-table-wrap {
+  padding: 0;
   overflow: hidden;
 }
 
@@ -418,31 +458,26 @@ table {
 }
 
 thead th {
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 1.5rem;
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
   background-color: rgba(255,255,255,0.5);
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 
 tbody tr {
   transition: background-color 0.2s ease;
-  border-bottom: 1px solid rgba(0,0,0,0.02);
+  border-bottom: 1px solid rgba(0,0,0,0.03);
 }
 
-tbody tr:last-child {
-  border-bottom: none;
-}
-
-tbody tr:hover {
-  background-color: rgba(255,255,255,0.4);
-}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background-color: rgba(99, 102, 241, 0.03); }
 
 td {
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 1.5rem;
   vertical-align: middle;
 }
 
@@ -459,16 +494,17 @@ td {
 }
 
 .avatar-placeholder {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--primary-gradient);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
+  flex-shrink: 0;
 }
 
 .name-text {
@@ -484,118 +520,48 @@ td {
 .status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.75rem;
+  gap: 0.4rem;
+  padding: 0.3rem 0.85rem;
   border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
-.status-pill.present {
-  background-color: var(--success-bg);
-  color: #059669;
-}
+.status-pill.present { background-color: #d1fae5; color: #059669; }
+.status-pill.absent { background-color: #fee2e2; color: #ef4444; }
+.status-pill.pending { background-color: #f1f5f9; color: #64748b; }
 
-.status-pill.pending {
-  background-color: #f1f5f9;
-  color: #64748b;
-}
-
-.checkin-time {
-  font-size: 0.75rem;
-  opacity: 0.8;
-  margin-left: 0.25rem;
+.actions-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .btn-checkin {
-  background: var(--primary-gradient);
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: white;
-  padding: 0.6rem 1.25rem;
+  padding: 0.55rem 1.2rem;
   border-radius: 8px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 3px 8px rgba(99, 102, 241, 0.25);
+  border: none;
 }
 
 .btn-checkin:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(99, 102, 241, 0.35);
 }
 
-/* Actions Wrapper in Header */
-.actions-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-}
-
-.btn-mark-all {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    padding: 0.6rem 1.25rem;
-    border-radius: 999px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    border: none;
-    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.btn-mark-all:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4);
-}
-
-/* Actions Cell */
-.actions-cell {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.btn-absent {
-    background: #f1f5f9;
-    border: 1px solid #cbd5e1;
-    color: #64748b;
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    transition: all 0.2s;
-}
-
-.btn-absent:hover {
-    background: #fee2e2;
-    color: #ef4444;
-    border-color: #fecaca;
-    transform: translateY(-2px);
-}
-
-/* Status Pill Absent */
-.status-pill.absent {
-  background-color: #fee2e2;
-  color: #ef4444;
-}
-
-/* Red button for 'Desmarcar' */
 .btn-checkin.btn-danger {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 3px 8px rgba(239, 68, 68, 0.25);
 }
 
 .btn-checkin.btn-danger:hover:not(:disabled) {
-    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.4);
+  box-shadow: 0 6px 14px rgba(239, 68, 68, 0.35);
 }
 
 .btn-checkin:disabled {
@@ -605,141 +571,63 @@ td {
   transform: none;
 }
 
-@media (max-width: 640px) {
-  .header {
-    padding: 1.5rem;
-  }
-  
-  .title {
-    font-size: 1.5rem;
-  }
-  
-  .time {
-    font-size: 2.5rem;
-  }
-  
-  td, th {
-    padding: 1rem;
-  }
-  
-  .role-cell {
-    display: none; /* Hide role on small screens if needed */
-  }
+.btn-absent {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
 }
 
-/* Print Styles */
-.screen-hidden {
-    display: none;
+.btn-absent:hover {
+  background: #fee2e2;
+  color: #ef4444;
+  border-color: #fecaca;
+  transform: translateY(-1px);
 }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .att-header { flex-direction: column; align-items: flex-start; }
+  .header-controls { flex-direction: column; align-items: stretch; }
+  .live-time { font-size: 1.5rem; }
+  td, th { padding: 0.75rem 1rem; }
+  .role-cell { display: none; }
+}
+
+/* ── Print ── */
+.screen-hidden { display: none; }
 
 @media print {
-  @page {
-    size: landscape;
-    margin: 1cm;
-  }
-
-  body {
-    background: white;
-    margin: 0;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  /* Hide everything on screen */
-  .attendance-container > .header,
-  .attendance-container > .staff-list-container,
-  nav, button, .app-layout > *:not(.content-area) {
-    display: none !important;
-  }
-  
-  /* Overrides for dev tools just in case */
-  body > div:not(#app),
-  [id*="vite-plugin-vue-devtools"] {
-      display: none !important;
-  }
-
-  .attendance-container {
-    width: 100%;
-    margin: 0;
-    padding: 0;
-  }
-
-  .print-sheet {
-    display: block !important;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-    color: black;
-  }
-
-  .report-header {
-      margin-bottom: 20px;
-  }
-
-  .company-name {
-    color: #009e60;
-    font-size: 20pt;
-    font-weight: 900;
-    text-align: center;
-    margin: 0;
-  }
-
+  @page { size: landscape; margin: 1cm; }
+  body { background: white; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .attendance-container > .att-header,
+  .attendance-container > .status-bar,
+  .attendance-container > .staff-table-wrap,
+  nav, button, .app-container > *:not(.main-wrapper) { display: none !important; }
+  body > div:not(#app), [id*="vite-plugin-vue-devtools"] { display: none !important; }
+  .attendance-container { width: 100%; margin: 0; padding: 0; }
+  .print-sheet { display: block !important; width: 100%; margin: 0; padding: 0; font-family: Arial, sans-serif; color: black; }
+  .report-header { margin-bottom: 20px; }
+  .company-name { color: #009e60; font-size: 20pt; font-weight: 900; text-align: center; margin: 0; }
   .blue-text { color: #1e3a8a; }
-  
-  .company-info {
-    font-size: 9pt;
-    text-align: center;
-    margin-top: 5px;
-  }
-
-  .report-title {
-    text-align: center;
-    font-size: 14pt;
-    margin: 15px 0;
-    text-decoration: underline;
-  }
-
-  .report-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 8pt;
-  }
-
-  .report-table th, .report-table td {
-    border: 1px solid #000;
-    padding: 4px;
-    vertical-align: middle;
-  }
-
-  .report-table th {
-    background-color: #f3f4f6 !important;
-    font-weight: bold;
-  }
-
-  .bg-gray {
-      background-color: #e5e7eb !important;
-  }
-
-  .text-center { text-align: center; }
-  .text-left { text-align: left; }
-  .font-bold { font-weight: bold; }
-  .font-sm { font-size: 8pt; }
-  .font-xs { font-size: 7pt; }
-  
-  .text-green { color: #059669 !important; }
-  .text-red { color: #dc2626 !important; }
-
-  .w-item { width: 20px; }
-  .w-name { width: 220px; }
-  .w-role { width: 100px; }
-  .w-day { width: 20px; font-size: 7pt; padding: 2px !important; }
-  .w-total { width: 25px; }
-  
-  .leyenda {
-      font-size: 9pt;
-      margin-top: 15px;
-      page-break-inside: avoid;
-  }
+  .company-info { font-size: 9pt; text-align: center; margin-top: 5px; }
+  .report-title { text-align: center; font-size: 14pt; margin: 15px 0; text-decoration: underline; }
+  .report-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+  .report-table th, .report-table td { border: 1px solid #000; padding: 4px; vertical-align: middle; }
+  .report-table th { background-color: #f3f4f6 !important; font-weight: bold; }
+  .bg-gray { background-color: #e5e7eb !important; }
+  .text-center { text-align: center; } .text-left { text-align: left; }
+  .font-bold { font-weight: bold; } .font-sm { font-size: 8pt; } .font-xs { font-size: 7pt; }
+  .text-green { color: #059669 !important; } .text-red { color: #dc2626 !important; }
+  .w-item { width: 20px; } .w-name { width: 220px; } .w-role { width: 100px; }
+  .w-day { width: 20px; font-size: 7pt; padding: 2px !important; } .w-total { width: 25px; }
+  .leyenda { font-size: 9pt; margin-top: 15px; page-break-inside: avoid; }
 }
 </style>
