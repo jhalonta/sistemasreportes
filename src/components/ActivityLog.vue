@@ -303,8 +303,8 @@ const handleSubmit = () => {
       </div>
       <div class="header-controls">
         <div class="date-picker-wrap">
-          <label>Fecha</label>
-          <input type="date" v-model="selectedDate" class="date-input" />
+          <label for="act-date">Fecha</label>
+          <input id="act-date" name="actDate" type="date" v-model="selectedDate" class="date-input" />
         </div>
         <span class="mode-badge" v-if="!isToday">Modo Histórico</span>
         <span class="close-badge">Cierre 18:00</span>
@@ -338,9 +338,9 @@ const handleSubmit = () => {
             </div>
             <div class="tech-grid">
               <div class="form-group">
-                <label><Users :size="14" /> Técnico Principal</label>
+                <label for="main-tech"><Users :size="14" /> Técnico Principal</label>
                 <div class="select-wrapper">
-                  <select v-model="selectedMainTech" required>
+                  <select id="main-tech" name="mainTech" v-model="selectedMainTech" required>
                     <option disabled value="">Seleccionar Técnico</option>
                     <option v-for="p in availableLeadTechs" :key="p.id" :value="p.id">
                       {{ p.name }} ({{ p.role }})
@@ -349,9 +349,9 @@ const handleSubmit = () => {
                 </div>
               </div>
               <div class="form-group">
-                <label><Users :size="14" /> Pareja (Opcional)</label>
+                <label for="partner-tech"><Users :size="14" /> Pareja (Opcional)</label>
                 <div class="select-wrapper">
-                  <select v-model="selectedPartnerTech">
+                  <select id="partner-tech" name="partnerTech" v-model="selectedPartnerTech">
                     <option value="">Sin pareja</option>
                     <option v-for="p in availablePartners" :key="p.id" :value="p.id">
                       {{ p.name }}
@@ -384,9 +384,9 @@ const handleSubmit = () => {
                 </div>
                 <div class="row-body">
                   <div class="form-group full-width">
-                    <label v-if="index === 0">Tipo de Actividad (Partida)</label>
+                    <label v-if="index === 0" :for="'rateCode-' + index">Tipo de Actividad (Partida)</label>
                     <div class="select-wrapper">
-                      <select v-model="row.rateCode" required>
+                      <select :id="'rateCode-' + index" :name="'rateCode-' + index" v-model="row.rateCode" required>
                         <option disabled value="">Seleccionar Actividad</option>
                         <optgroup v-for="(group, category) in groupedRates" :key="category" :label="category">
                           <option v-for="rate in group" :key="rate.code" :value="rate.code">
@@ -398,13 +398,13 @@ const handleSubmit = () => {
                   </div>
                   <div class="qty-grid">
                     <div class="form-group">
-                      <label v-if="index === 0">Meta</label>
-                      <input type="number" v-model="row.assigned" min="0" placeholder="0" />
+                      <label v-if="index === 0" :for="'assigned-' + index">Meta</label>
+                      <input :id="'assigned-' + index" :name="'assigned-' + index" type="number" v-model="row.assigned" min="0" placeholder="0" />
                       <div class="mini-calc" v-if="row.rateCode">Est: S/ {{ (getRateInfo(row.rateCode)?.price * row.assigned).toFixed(2) }}</div>
                     </div>
                     <div class="form-group">
-                      <label v-if="index === 0">Avance</label>
-                      <input type="number" v-model="row.completed" min="0" placeholder="0" />
+                      <label v-if="index === 0" :for="'completed-' + index">Avance</label>
+                      <input :id="'completed-' + index" :name="'completed-' + index" type="number" v-model="row.completed" min="0" placeholder="0" />
                       <div class="mini-calc highlight" v-if="row.rateCode">Real: S/ {{ (getRateInfo(row.rateCode)?.price * row.completed).toFixed(2) }}</div>
                     </div>
                   </div>
@@ -494,8 +494,8 @@ const handleSubmit = () => {
                 <div v-else class="edit-mode">
                   <div class="edit-fields">
                     <div class="form-group full-width">
-                      <label>Partida</label>
-                      <select v-model="editForm.rateCode" required class="edit-select">
+                      <label :for="'edit-rate-' + activity.id">Partida</label>
+                      <select :id="'edit-rate-' + activity.id" :name="'edit-rate-' + activity.id" v-model="editForm.rateCode" required class="edit-select">
                         <optgroup v-for="(grp, category) in groupedRates" :key="category" :label="category">
                           <option v-for="rate in grp" :key="rate.code" :value="rate.code">
                             {{ rate.code }} - {{ rate.name }} (S/ {{ rate.price.toFixed(2) }})
@@ -505,17 +505,17 @@ const handleSubmit = () => {
                     </div>
                     <div class="edit-qty-row">
                       <div class="form-group">
-                        <label>Meta</label>
-                        <input type="number" v-model="editForm.assigned" min="0">
+                        <label :for="'edit-assigned-' + activity.id">Meta</label>
+                        <input :id="'edit-assigned-' + activity.id" :name="'edit-assigned-' + activity.id" type="number" v-model="editForm.assigned" min="0">
                       </div>
                       <div class="form-group">
-                        <label>Real</label>
-                        <input type="number" v-model="editForm.completed" min="0">
+                        <label :for="'edit-completed-' + activity.id">Real</label>
+                        <input :id="'edit-completed-' + activity.id" :name="'edit-completed-' + activity.id" type="number" v-model="editForm.completed" min="0">
                       </div>
                     </div>
                     <div class="form-group full-width">
-                      <label>Observaciones</label>
-                      <input type="text" v-model="editForm.observations" placeholder="Opcional">
+                      <label :for="'edit-obs-' + activity.id">Observaciones</label>
+                      <input :id="'edit-obs-' + activity.id" :name="'edit-obs-' + activity.id" type="text" v-model="editForm.observations" placeholder="Opcional">
                     </div>
                   </div>
                   <div class="edit-actions">
