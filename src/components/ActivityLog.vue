@@ -1,20 +1,40 @@
 <script setup>
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { AlertTriangle, X, Pencil, Trash2, Check, PenLine, Plus, Users, ClipboardList, Save } from 'lucide-vue-next';
-import { personnel } from '../data/personnel';
 import { rates } from '../data/rates';
-import { useActivities } from '../composables/useActivities';
-import { useAttendance } from '../composables/useAttendance';
+import { useAttendanceStore } from '../features/attendance/store/attendanceStore';
+import { useTechnicianStore } from '../features/technicians/store/technicianStore';
+import { useActivityStore } from '../features/activities/store/activityStore';
 import { useNotifications } from '../composables/useNotifications';
 import { useGlobalStore } from '../stores/global';
-import { storeToRefs } from 'pinia';
-
-const { activities, addActivity, updateActivity, deleteActivity } = useActivities();
-const { getStatus } = useAttendance();
-const { showNotification } = useNotifications();
+import { useAuthStore } from '../features/auth/store/authStore';
+import { useVehicleStore } from '../features/vehicles/store/vehicleStore';
+import { storeToRefs } from 'pinia';;
 
 const globalStore = useGlobalStore();
 const { selectedDate } = storeToRefs(globalStore);
+
+const { showNotification } = useNotifications();
+const attendanceStore = useAttendanceStore();
+const techStore = useTechnicianStore();
+const activityStore = useActivityStore();
+const authStore = useAuthStore();
+const vehicleStore = useVehicleStore();
+
+onMounted(async () => {
+  await Promise.all([
+    techStore.fetchTechnicians(),
+    attendanceStore.fetchAttendance(),
+    activityStore.fetchActivities(),
+    vehicleStore.fetchVehicles()
+  ]);
+});
+
+watch(selectedDate, async (newDate) => {
+  if (newDate) {
+    await attendanceStore.fetchAttendance(newDate);
+  }
+});
 
 // Helper for safe ID generation
 const generateId = () => {
@@ -33,6 +53,8 @@ const isToday = computed(() => {
 // Form State
 const selectedMainTech = ref('');
 const selectedPartnerTech = ref('');
+const selectedVehicle = ref('');
+const showMainModal = ref(false);
 const activityRows = ref([
   { id: generateId(), rateCode: '', assigned: 0, completed: 0, observations: '' }
 ]);
@@ -42,6 +64,16 @@ const editingId = ref(null);
 const editForm = ref({ assigned: 0, completed: 0, observations: '' });
 const showDeleteModal = ref(false);
 const itemToDeleteId = ref(null);
+
+// Status Modals State
+const showPartialModal = ref(false);
+const showCancelModal = ref(false);
+const currentStatusGroup = ref(null);
+const partialItems = ref([]);
+const cancelReason = ref('');
+const statusLoading = ref(false);
+const isAddingToExisting = ref(false);
+const currentStatusItem = ref(null);
 
 // Helpers
 const scrollToTop = () => {
@@ -86,17 +118,31 @@ const totalRealized = computed(() => {
 
 const excludedRoles = ['Analista Informatico', 'Asistente Administrativo'];
 const operationalPersonnel = computed(() => {
-  return personnel.filter(p => {
+  const profile = authStore.userProfile;
+  
+  return techStore.technicians.filter(p => {
+    // 1. Exclude non-operational roles
     if (excludedRoles.includes(p.role)) return false;
-    const attendanceRecord = getStatus(p.id, selectedDate.value);
-    if (attendanceRecord && attendanceRecord.status === 'Falta') return false;
+    
+    // 2. Must be active
+    if (!p.active) return false;
+    
+    // 3. Role-based filter (Sede only sees their own)
+    if (profile?.role === 'sede' && p.locationId !== profile.locationId) {
+      return false;
+    }
+    
+    // 4. User request: Don't show absent technicians in activity selection
+    const attendanceRecord = attendanceStore.records[p.id];
+    if (attendanceRecord && attendanceRecord.status === 'absent') return false;
+    
     return true;
   });
 });
 
 const busyTechIds = computed(() => {
   const targetDate = selectedDate.value;
-  const targetActivities = activities.value.filter(a => a.timestamp.startsWith(targetDate));
+  const targetActivities = activityStore.activities.filter(a => a.timestamp.startsWith(targetDate));
   
   const ids = new Set();
   targetActivities.forEach(a => {
@@ -145,12 +191,23 @@ const pendingPersonnel = computed(() => {
   return operationalPersonnel.value.filter(p => !busyTechIds.value.has(p.id));
 });
 
+const availableVehicles = computed(() => {
+  const profile = authStore.userProfile;
+  return vehicleStore.vehicles.filter(v => {
+    // 1. Must be available
+    if (v.estado !== 'disponible') return false;
+    // 2. Sede-based filter
+    if (profile?.role === 'sede' && v.sedeId !== profile.locationId) return false;
+    return true;
+  });
+});
+
 const groupedActivities = computed(() => {
     const groups = [];
     const map = new Map();
     
     const targetDate = selectedDate.value;
-    const filtered = activities.value.filter(a => a.timestamp.startsWith(targetDate));
+    const filtered = activityStore.activities.filter(a => a.timestamp.startsWith(targetDate));
 
     filtered.forEach(act => {
         const key = `${act.mainTechId}|${act.partnerTechId}`;
@@ -163,6 +220,8 @@ const groupedActivities = computed(() => {
                 mainTechName: act.mainTechName,
                 partnerTechId: act.partnerTechId,
                 partnerTechName: act.partnerTechName,
+                vehicleId: act.vehicleId || null,
+                vehiclePlaca: act.vehiclePlaca || null,
                 items: []
             };
             map.set(key, group);
@@ -170,35 +229,67 @@ const groupedActivities = computed(() => {
         }
         map.get(key).items.push(act);
     });
+
+    // Compute aggregate status for the group
+    groups.forEach(group => {
+        const allCompletada = group.items.every(i => i.status === 'completada');
+        const allCancelled = group.items.every(i => i.status === 'cancelada');
+        const anyInProcess = group.items.some(i => i.status === 'en_proceso');
+        
+        if (anyInProcess) group.status = 'en_proceso';
+        else if (allCompletada) group.status = 'completada';
+        else if (allCancelled) group.status = 'cancelada';
+        else group.status = 'parcial';
+    });
+
     return groups;
 });
 
 // Actions
+const openMainModal = () => {
+    resetForm();
+    isAddingToExisting.value = false;
+    showMainModal.value = true;
+};
+
+const closeMainModal = () => {
+    isAddingToExisting.value = false;
+    showMainModal.value = false;
+};
+
 const addActivityToGroup = async (group) => {
     try {
-        // 1. Assign selected techs
-        selectedMainTech.value = group.mainTechId || '';
-        selectedPartnerTech.value = group.partnerTechId || '';
-        
-        // 2. Clear rows and add a single clean one
-        activityRows.value = [{ 
-          id: generateId(), 
-          rateCode: '', 
-          assigned: 0, 
-          completed: 0,
-          observations: ''
-        }];
+        const isSameTeam = selectedMainTech.value === group.mainTechId && 
+                          selectedPartnerTech.value === (group.partnerTechId || '');
 
-        // 3. Wait for DOM and computed list to catch up
+        if (isSameTeam) {
+            // Check if we have an empty row already to reuse it
+            const hasEmptyRow = activityRows.value.length === 1 && !activityRows.value[0].rateCode;
+            if (!hasEmptyRow) {
+                addRow();
+            }
+        } else {
+            // New team selection
+            selectedMainTech.value = group.mainTechId || '';
+            selectedPartnerTech.value = group.partnerTechId || '';
+            selectedVehicle.value = group.vehicleId || '';
+            
+            // Only reset to 1 clean row if necessary
+            activityRows.value = [{ 
+              id: generateId(), 
+              rateCode: '', 
+              assigned: 0, 
+              completed: 0,
+              observations: ''
+            }];
+        }
+
+        isAddingToExisting.value = true;
+        showMainModal.value = true;
         await nextTick();
-
-        // 4. Scroll smoothly to top
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        
-        console.log(`Add to group triggered for: ${group.mainTechName}`);
     } catch (e) {
         console.error("Error in addActivityToGroup:", e);
-        showNotification("Error al cargar técnicos del historial", "error");
+        showNotification("Error al cargar técnicos", "error");
     }
 };
 
@@ -232,7 +323,7 @@ const cancelEditing = () => {
     editingId.value = null;
 };
 
-const saveEdit = (activity) => {
+const saveEdit = async (activity) => {
     const rate = getRateInfo(editForm.value.rateCode); 
     if (!rate) return;
 
@@ -242,7 +333,7 @@ const saveEdit = (activity) => {
     const newProjected = (rate.price * assigned).toFixed(2);
     const newRealized = (rate.price * completed).toFixed(2);
 
-    updateActivity(activity.id, {
+    await activityStore.updateActivity(activity.id, {
         rateCode: rate.code,
         description: `${rate.code} - ${rate.name}`,
         assigned: assigned,
@@ -262,9 +353,21 @@ const requestDelete = (id) => {
     showDeleteModal.value = true;
 };
 
-const confirmDelete = () => {
+const confirmDelete = async () => {
     if (itemToDeleteId.value) {
-        deleteActivity(itemToDeleteId.value);
+        // Find the group before deleting
+        const activity = activityStore.activities.find(a => a.id === itemToDeleteId.value);
+        const groupKey = activity ? `${activity.mainTechId}-${activity.timestamp}` : null;
+        
+        await activityStore.deleteActivity(itemToDeleteId.value);
+        
+        // After deletion, check if the group is now complete (to release vehicle)
+        if (groupKey) {
+            await nextTick(); // Wait for groupedActivities computed to update
+            const group = groupedActivities.value.find(g => `${g.mainTechId}-${g.timestamp}` === groupKey);
+            if (group) await checkGroupCompletion(group);
+        }
+        
         showNotification('Registro eliminado', 'info');
     }
     closeDeleteModal();
@@ -275,7 +378,7 @@ const closeDeleteModal = () => {
     itemToDeleteId.value = null;
 };
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (!selectedMainTech.value) {
     showNotification('Seleccione un técnico principal.', 'error');
     return;
@@ -287,26 +390,31 @@ const handleSubmit = () => {
     return;
   }
 
-  const mainTech = personnel.find(p => p.id === selectedMainTech.value);
+  const mainTech = techStore.technicians.find(p => p.id === selectedMainTech.value);
   const partnerTech = selectedPartnerTech.value 
-    ? personnel.find(p => p.id === selectedPartnerTech.value) 
+    ? techStore.technicians.find(p => p.id === selectedPartnerTech.value) 
+    : null;
+  const vehicle = selectedVehicle.value 
+    ? vehicleStore.vehicles.find(v => v.id === selectedVehicle.value)
     : null;
 
   let savedCount = 0;
   const entryTime = new Date().toLocaleTimeString('en-US', { hour12: false });
   const timestamp = `${selectedDate.value}T${entryTime}`;
   
-  validRows.forEach(row => {
+  for (const row of validRows) {
     const rate = getRateInfo(row.rateCode);
     const description = `${rate.code} - ${rate.name}`;
     const rowProjected = (rate.price * row.assigned).toFixed(2);
     const rowRealized = (rate.price * row.completed).toFixed(2);
 
-    addActivity({
+    await activityStore.addActivity({
       mainTechId: mainTech.id,
-      mainTechName: mainTech.name,
+      mainTechName: mainTech.fullName,
       partnerTechId: partnerTech?.id || null,
-      partnerTechName: partnerTech?.name || null,
+      partnerTechName: partnerTech?.fullName || null,
+      vehicleId: vehicle?.id || null,
+      vehiclePlaca: vehicle?.placa || null,
       description: description,
       assigned: row.assigned,
       completed: row.completed,
@@ -315,17 +423,150 @@ const handleSubmit = () => {
       projectedValue: rowProjected,
       realizedValue: rowRealized,
       observations: row.observations || '',
-      timestamp: timestamp
+      timestamp: timestamp,
+      status: 'en_proceso'
     });
     savedCount++;
-  });
+  }
+
+  // Update vehicle status
+  if (vehicle) {
+    await vehicleStore.updateVehicle(vehicle.id, { estado: 'asignado' });
+  }
 
   selectedMainTech.value = '';
   selectedPartnerTech.value = '';
+  selectedVehicle.value = '';
   activityRows.value = [{ id: generateId(), rateCode: '', assigned: 0, completed: 0, observations: '' }];
+  showMainModal.value = false;
   
   showNotification(`${savedCount} actividades registradas (${selectedDate.value})`, 'success');
   scrollToTop();
+};
+
+const handleReleaseVehicle = async (group) => {
+  if (!group.vehicleId) return;
+  try {
+    await vehicleStore.updateVehicle(group.vehicleId, { estado: 'disponible' });
+    showNotification('Vehículo liberado', 'success');
+  } catch (err) {
+    showNotification('Error al liberar vehículo', 'error');
+  }
+};
+
+const checkGroupCompletion = async (group) => {
+  if (!group || !group.vehicleId) return;
+  
+  // Wait for computed property to re-evaluate items
+  await nextTick();
+  
+  // Find the fresh group data
+  const freshGroup = groupedActivities.value.find(g => g.mainTechId === group.mainTechId && g.timestamp === group.timestamp);
+  if (!freshGroup) return;
+
+  const allClosed = freshGroup.items.every(i => ['completada', 'parcial', 'cancelada'].includes(i.status));
+  if (allClosed) {
+    await vehicleStore.updateVehicle(group.vehicleId, { estado: 'disponible' });
+  } else {
+    // If at least one is "en_proceso", vehicle must be "asignado"
+    await vehicleStore.updateVehicle(group.vehicleId, { estado: 'asignado' });
+  }
+};
+
+const handleUpdateStatus = async (item, group, newStatus) => {
+  currentStatusGroup.value = group;
+  currentStatusItem.value = item;
+  
+  if (newStatus === 'completada') {
+    statusLoading.value = true;
+    try {
+      const rate = getRateInfo(item.rateCode);
+      const val = (rate.price * item.assigned).toFixed(2);
+      await activityStore.updateActivity(item.id, { 
+        status: 'completada',
+        completed: item.assigned,
+        realizedValue: val,
+        totalValue: val
+      });
+      await checkGroupCompletion(group);
+      showNotification('Actividad completada', 'success');
+    } finally {
+      statusLoading.value = false;
+    }
+  } else if (newStatus === 'parcial') {
+    partialItems.value = [{
+      id: item.id,
+      description: item.description,
+      assigned: item.assigned,
+      completed: item.completed || 0,
+      rateCode: item.rateCode
+    }];
+    showPartialModal.value = true;
+  } else if (newStatus === 'cancelada') {
+    cancelReason.value = '';
+    showCancelModal.value = true;
+  } else if (newStatus === 'en_proceso') {
+    await activityStore.updateActivity(item.id, { status: 'en_proceso' });
+    await checkGroupCompletion(group);
+    showNotification('Actividad reabierta', 'info');
+  }
+};
+
+const confirmPartialStatus = async () => {
+  statusLoading.value = true;
+  try {
+    const item = partialItems.value[0];
+    const rate = getRateInfo(item.rateCode);
+    const val = (rate.price * item.completed).toFixed(2);
+    await activityStore.updateActivity(item.id, { 
+      status: 'parcial',
+      completed: Number(item.completed),
+      realizedValue: val,
+      totalValue: val
+    });
+    await checkGroupCompletion(currentStatusGroup.value);
+    showPartialModal.value = false;
+    showNotification('Avance parcial registrado', 'success');
+  } finally {
+    statusLoading.value = false;
+  }
+};
+
+const confirmCancelStatus = async () => {
+  if (!cancelReason.value.trim()) {
+    showNotification('Por favor, ingrese un motivo.', 'error');
+    return;
+  }
+  statusLoading.value = true;
+  try {
+    await activityStore.updateActivity(currentStatusItem.value.id, { 
+      status: 'cancelada',
+      observations: `CANCELADO: ${cancelReason.value.trim()}`
+    });
+    await checkGroupCompletion(currentStatusGroup.value);
+    showCancelModal.value = false;
+    showNotification('Actividad cancelada', 'info');
+  } finally {
+    statusLoading.value = false;
+  }
+};
+
+const getStatusBadge = (status) => {
+  switch (status) {
+    case 'en_proceso': return { label: 'En Proceso', class: 'status-process' };
+    case 'completada': return { label: 'Completada', class: 'status-completed' };
+    case 'parcial': return { label: 'Parcial', class: 'status-partial' };
+    case 'cancelada': return { label: 'Cancelada', class: 'status-cancelled' };
+    default: return { label: status, class: '' };
+  }
+};
+
+const resetForm = () => {
+  selectedMainTech.value = '';
+  selectedPartnerTech.value = '';
+  selectedVehicle.value = '';
+  isAddingToExisting.value = false;
+  activityRows.value = [{ id: generateId(), rateCode: '', assigned: 0, completed: 0, observations: '' }];
 };
 </script>
 
@@ -346,7 +587,9 @@ const handleSubmit = () => {
           <input id="act-date" name="actDate" type="date" v-model="selectedDate" class="date-input" />
         </div>
         <span class="mode-badge" v-if="!isToday">Modo Histórico</span>
-        <span class="close-badge">Cierre 18:00</span>
+        <button type="button" class="btn-assign" @click="openMainModal">
+          <Plus :size="18" /> Asignar Trabajo
+        </button>
       </div>
     </div>
 
@@ -362,130 +605,181 @@ const handleSubmit = () => {
         <span>Faltan reportar <strong>{{ pendingPersonnel.length }}</strong> técnicos</span>
       </div>
 
-      <!-- FORM CARD -->
-      <div class="form-card glass-panel">
-        <form @submit.prevent="handleSubmit">
-
-          <!-- Step 1: Team Selection -->
-          <div class="form-step">
-            <div class="step-header">
-              <span class="step-number">1</span>
-              <div>
-                <h3 class="step-title">Equipo de Trabajo</h3>
-                <p class="step-desc">Selecciona al técnico principal y su pareja si corresponde.</p>
-              </div>
-            </div>
-            <div class="tech-grid">
-              <div class="form-group">
-                <label for="main-tech"><Users :size="14" /> Técnico Principal</label>
-                <div class="select-wrapper">
-                  <select id="main-tech" name="mainTech" v-model="selectedMainTech" required>
-                    <option disabled value="">Seleccionar Técnico</option>
-                    <option v-for="p in availableLeadTechs" :key="p.id" :value="p.id">
-                      {{ p.name }} ({{ p.role }})
-                    </option>
-                  </select>
+      <!-- MAIN REGISTRATION MODAL -->
+      <Transition name="fade">
+        <div v-show="showMainModal" class="modal-overlay main-form-modal" @click.self="closeMainModal">
+          <div class="modal-content glass-panel">
+            <div class="modal-header">
+              <div class="header-title">
+                <PenLine :size="24" class="title-icon" />
+                <div>
+                  <h3>Asignar Nueva Actividad</h3>
+                  <p>Completa los pasos para registrar el trabajo.</p>
                 </div>
               </div>
-              <div class="form-group">
-                <label for="partner-tech"><Users :size="14" /> Pareja (Opcional)</label>
-                <div class="select-wrapper">
-                  <select id="partner-tech" name="partnerTech" v-model="selectedPartnerTech">
-                    <option value="">Sin pareja</option>
-                    <option v-for="p in availablePartners" :key="p.id" :value="p.id">
-                      {{ p.name }}
-                    </option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-divider"></div>
-
-          <!-- Step 2: Activities -->
-          <div class="form-step">
-            <div class="step-header">
-              <span class="step-number">2</span>
-              <div>
-                <h3 class="step-title">Actividades Realizadas</h3>
-                <p class="step-desc">Agrega las partidas trabajadas con sus cantidades.</p>
-              </div>
+              <button type="button" class="btn-close-modal" @click="closeMainModal">
+                <X :size="24" />
+              </button>
             </div>
 
-            <transition-group name="list" tag="div" class="rows-container">
-              <div v-for="(row, index) in activityRows" :key="row.id" class="activity-row">
-                <div class="row-top">
-                  <span class="row-number">Actividad {{ index + 1 }}</span>
-                  <button type="button" class="btn-icon-sm remove" @click="removeRow(index)" v-if="activityRows.length > 1" title="Eliminar">
-                    <X :size="16" />
-                  </button>
-                </div>
-                <div class="row-body">
-                  <div class="form-group full-width">
-                    <label v-if="index === 0" :for="'rateCode-' + index">Tipo de Actividad (Partida)</label>
-                    <div class="select-wrapper">
-                      <select :id="'rateCode-' + index" :name="'rateCode-' + index" v-model="row.rateCode" required>
-                        <option disabled value="">Seleccionar Actividad</option>
-                        <optgroup v-for="(group, category) in groupedRates" :key="category" :label="category">
-                          <option v-for="rate in group" :key="rate.code" :value="rate.code">
-                            {{ rate.code }} - {{ rate.name }} (S/ {{ rate.price.toFixed(2) }})
-                          </option>
-                        </optgroup>
-                      </select>
+            <div class="modal-body">
+              <div class="form-card">
+                <form @submit.prevent="handleSubmit">
+
+                  <!-- Step 1: Team Selection -->
+                  <div class="form-step" v-if="!isAddingToExisting">
+                    <div class="step-header">
+                      <span class="step-number">1</span>
+                      <div>
+                        <h3 class="step-title">Equipo de Trabajo</h3>
+                        <p class="step-desc">Selecciona al técnico principal y su pareja si corresponde.</p>
+                      </div>
+                    </div>
+                    <div class="tech-grid">
+                      <div class="form-group">
+                        <label for="main-tech"><Users :size="14" /> Técnico Principal</label>
+                        <div class="select-wrapper">
+                          <select id="main-tech" name="mainTech" v-model="selectedMainTech" required>
+                            <option disabled value="">Seleccionar Técnico</option>
+                            <option v-for="p in availableLeadTechs" :key="p.id" :value="p.id">
+                              {{ p.fullName }} ({{ p.role }})
+                            </option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="partner-tech"><Users :size="14" /> Pareja (Opcional)</label>
+                        <div class="select-wrapper">
+                          <select id="partner-tech" name="partnerTech" v-model="selectedPartnerTech">
+                            <option value="">Sin pareja</option>
+                             <option v-for="p in availablePartners" :key="p.id" :value="p.id">
+                               {{ p.fullName }}
+                            </option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="vehicle-select"><Truck :size="14" /> Vehículo Asignado</label>
+                        <div class="select-wrapper">
+                          <select id="vehicle-select" v-model="selectedVehicle" required>
+                            <option disabled value="">Seleccionar Vehículo</option>
+                            <option v-for="v in availableVehicles" :key="v.id" :value="v.id">
+                              {{ v.placa }} - {{ v.tipo }}
+                            </option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div class="qty-grid">
-                    <div class="form-group">
-                      <label v-if="index === 0" :for="'assigned-' + index">Meta</label>
-                      <input :id="'assigned-' + index" :name="'assigned-' + index" type="number" v-model="row.assigned" min="0" placeholder="0" />
-                      <div class="mini-calc" v-if="row.rateCode">Est: S/ {{ (getRateInfo(row.rateCode)?.price * row.assigned).toFixed(2) }}</div>
-                    </div>
-                    <div class="form-group">
-                      <label v-if="index === 0" :for="'completed-' + index">Avance</label>
-                      <input :id="'completed-' + index" :name="'completed-' + index" type="number" v-model="row.completed" min="0" placeholder="0" />
-                      <div class="mini-calc highlight" v-if="row.rateCode">Real: S/ {{ (getRateInfo(row.rateCode)?.price * row.completed).toFixed(2) }}</div>
+
+                  <!-- Summary for Existing Group -->
+                  <div class="form-step existing-summary-step" v-else>
+                    <div class="existing-team-info glass-panel-sm">
+                      <div class="team-avatars">
+                        <Users :size="24" class="team-icon" />
+                      </div>
+                      <div class="team-details">
+                        <p class="team-label">Agregando a equipo existente</p>
+                        <p class="team-names">
+                          <strong>{{ techStore.technicians.find(t => t.id === selectedMainTech)?.fullName }}</strong>
+                          <span v-if="selectedPartnerTech"> + {{ techStore.technicians.find(t => t.id === selectedPartnerTech)?.fullName }}</span>
+                        </p>
+                        <p class="team-vehicle" v-if="selectedVehicle">
+                          <Truck :size="14" /> {{ vehicleStore.vehicles.find(v => v.id === selectedVehicle)?.placa }}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </transition-group>
 
-            <button type="button" class="btn-add-row" @click="addRow">
-              <Plus :size="18" /> Agregar otra actividad
-            </button>
-          </div>
+                  <div class="form-divider"></div>
 
-          <div class="form-divider"></div>
+                  <!-- Step 2: Activities -->
+                  <div class="form-step">
+                    <div class="step-header">
+                      <span class="step-number">2</span>
+                      <div>
+                        <h3 class="step-title">Actividades Realizadas</h3>
+                        <p class="step-desc">Agrega las partidas trabajadas con sus cantidades.</p>
+                      </div>
+                    </div>
 
-          <!-- Step 3: Totals & Submit -->
-          <div class="form-step">
-            <div class="step-header">
-              <span class="step-number">3</span>
-              <div>
-                <h3 class="step-title">Resumen y Registro</h3>
-                <p class="step-desc">Verifica los totales y confirma el registro.</p>
+                    <div class="rows-container">
+                      <div v-for="(row, index) in activityRows" :key="row.id" class="activity-row">
+                        <div class="row-top">
+                          <span class="row-number">Actividad {{ index + 1 }}</span>
+                          <button type="button" class="btn-icon-sm remove" @click="removeRow(index)" v-if="activityRows.length > 1" title="Eliminar">
+                            <X :size="16" />
+                          </button>
+                        </div>
+                        <div class="row-body">
+                          <div class="form-group full-width">
+                            <label v-if="index === 0" :for="'rateCode-' + index">Tipo de Actividad (Partida)</label>
+                            <div class="select-wrapper">
+                              <select :id="'rateCode-' + index" :name="'rateCode-' + index" v-model="row.rateCode" required>
+                                <option disabled value="">Seleccionar Actividad</option>
+                                <optgroup v-for="(group, category) in groupedRates" :key="category" :label="category">
+                                  <option v-for="rate in group" :key="rate.code" :value="rate.code">
+                                    {{ rate.code }} - {{ rate.name }} (S/ {{ rate.price.toFixed(2) }})
+                                  </option>
+                                </optgroup>
+                              </select>
+                            </div>
+                          </div>
+                          <div class="qty-grid">
+                            <div class="form-group">
+                              <label v-if="index === 0" :for="'assigned-' + index">Meta</label>
+                              <input :id="'assigned-' + index" :name="'assigned-' + index" type="number" v-model="row.assigned" min="0" placeholder="0" />
+                              <div class="mini-calc" v-if="row.rateCode">Est: S/ {{ (getRateInfo(row.rateCode)?.price * row.assigned).toFixed(2) }}</div>
+                            </div>
+                            <div class="form-group">
+                              <label v-if="index === 0" :for="'completed-' + index">Avance</label>
+                              <input :id="'completed-' + index" :name="'completed-' + index" type="number" v-model="row.completed" min="0" placeholder="0" />
+                              <div class="mini-calc highlight" v-if="row.rateCode">Real: S/ {{ (getRateInfo(row.rateCode)?.price * row.completed).toFixed(2) }}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button type="button" class="btn-add-row" @click="addRow">
+                      <Plus :size="18" /> Agregar otra actividad
+                    </button>
+                  </div>
+
+                  <div class="form-divider"></div>
+
+                  <!-- Step 3: Totals & Submit -->
+                  <div class="form-step">
+                    <div class="step-header">
+                      <span class="step-number">3</span>
+                      <div>
+                        <h3 class="step-title">Resumen y Registro</h3>
+                        <p class="step-desc">Verifica los totales y confirma el registro.</p>
+                      </div>
+                    </div>
+
+                    <div class="totals-row" v-if="totalProjected > 0 || totalRealized > 0">
+                      <div class="total-card">
+                        <span class="total-label">Proyección Total</span>
+                        <span class="total-value">S/ {{ totalProjected }}</span>
+                      </div>
+                      <div class="total-card real">
+                        <span class="total-label">Total Realizado</span>
+                        <span class="total-value">S/ {{ totalRealized }}</span>
+                      </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit">
+                      <Save :size="20" /> Registrar Toda la Producción
+                    </button>
+                  </div>
+
+                </form>
               </div>
             </div>
-
-            <div class="totals-row" v-if="totalProjected > 0 || totalRealized > 0">
-              <div class="total-card">
-                <span class="total-label">Proyección Total</span>
-                <span class="total-value">S/ {{ totalProjected }}</span>
-              </div>
-              <div class="total-card real">
-                <span class="total-label">Total Realizado</span>
-                <span class="total-value">S/ {{ totalRealized }}</span>
-              </div>
-            </div>
-
-            <button type="submit" class="btn-submit">
-              <Save :size="20" /> Registrar Toda la Producción
-            </button>
           </div>
-
-        </form>
-      </div>
+        </div>
+      </Transition>
 
       <!-- HISTORY SECTION -->
       <div class="history-section glass-panel">
@@ -501,6 +795,12 @@ const handleSubmit = () => {
               <div class="tech-info">
                 <span class="tech-tag main">{{ group.mainTechName }}</span>
                 <span v-if="group.partnerTechName" class="tech-tag partner">+ {{ group.partnerTechName }}</span>
+                <span v-if="group.vehiclePlaca" class="tech-tag vehicle">
+                  <Truck :size="14" /> {{ group.vehiclePlaca }}
+                </span>
+                <span class="status-badge-main" :class="getStatusBadge(group.status).class">
+                  {{ getStatusBadge(group.status).label }}
+                </span>
               </div>
               <div class="group-meta">
                 <span class="time-badge">{{ formatDate(group.timestamp) }}</span>
@@ -516,7 +816,10 @@ const handleSubmit = () => {
                 <!-- Standard View -->
                 <div v-if="editingId !== activity.id" class="activity-content">
                   <div class="activity-info">
-                    <p class="description">{{ activity.description }}</p>
+                    <div class="title-status-row">
+                      <p class="description">{{ activity.description }}</p>
+                      <span class="item-status-pill" :class="getStatusBadge(activity.status).class">{{ getStatusBadge(activity.status).label }}</span>
+                    </div>
                     <p v-if="activity.observations" class="observations-text"><em>Obs: {{ activity.observations }}</em></p>
                     <div class="stats-mini">
                       <span class="stat-pill">Meta: <strong>{{ activity.assigned }}</strong> <small class="text-muted">S/ {{ activity.projectedValue || '0.00' }}</small></span>
@@ -524,6 +827,24 @@ const handleSubmit = () => {
                     </div>
                   </div>
                   <div class="line-actions">
+                    <!-- Status Actions for the Line -->
+                    <div class="status-actions">
+                      <button v-if="activity.status === 'en_proceso'" @click="handleUpdateStatus(activity, group, 'completada')" class="btn-status-action complete" title="Completar">
+                        <Check :size="14" />
+                      </button>
+                      <button v-if="activity.status === 'en_proceso'" @click="handleUpdateStatus(activity, group, 'parcial')" class="btn-status-action partial" title="Cierre Parcial">
+                        <AlertTriangle :size="14" />
+                      </button>
+                      <button v-if="['completada', 'parcial', 'cancelada'].includes(activity.status)" @click="handleUpdateStatus(activity, group, 'en_proceso')" class="btn-status-action reset" title="Reabrir">
+                        <PenLine :size="14" />
+                      </button>
+                      <button v-if="activity.status === 'en_proceso'" @click="handleUpdateStatus(activity, group, 'cancelada')" class="btn-status-action cancel" title="Cancelar">
+                        <X :size="14" />
+                      </button>
+                    </div>
+
+                    <div class="divider-v"></div>
+
                     <button @click="startEditing(activity)" class="btn-icon-action edit" title="Editar"><Pencil :size="16" /></button>
                     <button @click="requestDelete(activity.id)" class="btn-icon-action delete" title="Eliminar"><Trash2 :size="16" /></button>
                   </div>
@@ -544,12 +865,12 @@ const handleSubmit = () => {
                     </div>
                     <div class="edit-qty-row">
                       <div class="form-group">
-                        <label :for="'edit-assigned-' + activity.id">Meta</label>
+                        <label :for="'edit-assigned-' + activity.id">Meta de trabajo</label>
                         <input :id="'edit-assigned-' + activity.id" :name="'edit-assigned-' + activity.id" type="number" v-model="editForm.assigned" min="0">
                       </div>
-                      <div class="form-group">
-                        <label :for="'edit-completed-' + activity.id">Real</label>
-                        <input :id="'edit-completed-' + activity.id" :name="'edit-completed-' + activity.id" type="number" v-model="editForm.completed" min="0">
+                      <div class="form-group info-only">
+                        <label>Avance Real</label>
+                        <div class="readonly-val">{{ activity.completed }}</div>
                       </div>
                     </div>
                     <div class="form-group full-width">
@@ -581,6 +902,58 @@ const handleSubmit = () => {
         <div class="modal-actions">
           <button class="btn-modal secondary" @click="closeDeleteModal">Cancelar</button>
           <button class="btn-modal danger" @click="confirmDelete">Sí, Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </Transition>
+
+  <!-- Partial Closure Modal -->
+  <Transition name="fade">
+    <div v-if="showPartialModal" class="modal-overlay" @click.self="showPartialModal = false">
+      <div class="modal-card compact-status">
+        <div class="modal-header-compact">
+          <AlertTriangle :size="20" class="icon-warning" />
+          <h3>Cierre Parcial</h3>
+        </div>
+        <p class="modal-desc">Ingrese el avance real para cada actividad.</p>
+        
+        <div class="partial-list">
+          <div v-for="item in partialItems" :key="item.id" class="partial-input-row">
+            <span class="p-desc">{{ item.description }}</span>
+            <div class="p-inputs">
+              <span class="p-meta">Meta: {{ item.assigned }}</span>
+              <input type="number" v-model="item.completed" placeholder="0" class="input-mini">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-modal secondary" @click="showPartialModal = false">Cancelar</button>
+          <button class="btn-modal primary" :disabled="statusLoading" @click="confirmPartialStatus">
+            {{ statusLoading ? 'Guardando...' : 'Confirmar Cierre' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Transition>
+
+  <!-- Cancel Modal -->
+  <Transition name="fade">
+    <div v-if="showCancelModal" class="modal-overlay" @click.self="showCancelModal = false">
+      <div class="modal-card compact-status">
+        <div class="modal-header-compact">
+          <X :size="20" class="icon-danger" />
+          <h3>Cancelar Trabajo</h3>
+        </div>
+        <div class="reason-form">
+          <label>Motivo de cancelación</label>
+          <textarea v-model="cancelReason" placeholder="Ej: Falla mecánica, lluvia, etc." rows="3"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-modal secondary" @click="showCancelModal = false">Volver</button>
+          <button class="btn-modal danger" :disabled="statusLoading" @click="confirmCancelStatus">
+            {{ statusLoading ? 'Procesando...' : 'Confirmar Cancelación' }}
+          </button>
         </div>
       </div>
     </div>
@@ -644,6 +1017,32 @@ const handleSubmit = () => {
   gap: 1rem;
 }
 
+.btn-assign {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  border: none;
+  padding: 0.65rem 1.4rem;
+  border-radius: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  margin-bottom: 2px;
+}
+
+.btn-assign:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+  filter: brightness(1.1);
+}
+
+.btn-assign:active {
+  transform: translateY(0);
+}
+
 .date-picker-wrap {
   display: flex;
   flex-direction: column;
@@ -702,21 +1101,21 @@ const handleSubmit = () => {
 
 /* ── Pending Alert ── */
 .pending-alert {
-  background: #fffbeb;
-  color: #b45309;
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
-  border: 1px solid #fcd34d;
+  background: var(--danger-bg, #fffbeb);
+  color: var(--danger, #b45309);
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-2);
   display: flex;
   align-items: center;
   gap: 0.75rem;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 /* ── Form Card ── */
 .form-card {
-  padding: 2rem;
+  padding: 1.25rem 1.5rem;
 }
 
 .form-step {
@@ -726,21 +1125,21 @@ const handleSubmit = () => {
 .step-header {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .step-number {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   flex-shrink: 0;
 }
 
@@ -759,8 +1158,8 @@ const handleSubmit = () => {
 
 .form-divider {
   height: 1px;
-  background: linear-gradient(to right, transparent, var(--border-2, #e2e8f0), transparent);
-  margin: 1.5rem 0;
+  background: linear-gradient(to right, transparent, var(--border-2), transparent);
+  margin: 1rem 0;
 }
 
 /* ── Tech Grid ── */
@@ -802,17 +1201,17 @@ select:focus, input:focus {
 
 /* ── Activity Rows ── */
 .activity-row {
-  background: var(--bg-card-2, #f8fafc);
-  border: 1px solid var(--border-2, #e2e8f0);
-  border-radius: 14px;
-  padding: 1.25rem;
-  margin-bottom: 1rem;
+  background: var(--info-bg, #f8fafc);
+  border: 1px solid var(--border-2);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
   transition: all 0.2s ease;
 }
 
 .activity-row:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  border-color: var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
 .row-top {
@@ -1020,13 +1419,13 @@ select:focus, input:focus {
 }
 
 .tech-tag.main {
-  background: #eff6ff;
-  color: #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+  color: #3b82f6;
 }
 
 .tech-tag.partner {
-  background: #fdf2f8;
-  color: #db2777;
+  background: rgba(219, 39, 119, 0.12);
+  color: #ec4899;
 }
 
 .group-meta {
@@ -1037,7 +1436,7 @@ select:focus, input:focus {
 
 .time-badge {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--text-muted);
   font-weight: 600;
 }
 
@@ -1057,7 +1456,7 @@ select:focus, input:focus {
 }
 
 .btn-group-add:hover {
-  background: #e0e7ff;
+  background: rgba(99, 102, 241, 0.12);
   border-style: solid;
 }
 
@@ -1100,18 +1499,18 @@ select:focus, input:focus {
 }
 
 .stat-pill {
-  background: #f1f5f9;
+  background: var(--info-bg);
   padding: 0.2rem 0.6rem;
   border-radius: 6px;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .stat-pill.real {
-  background: #d1fae5;
-  color: #059669;
+  background: var(--success-bg);
+  color: var(--success);
 }
 
-.text-muted { color: #94a3b8; font-weight: normal; margin-left: 4px; }
+.text-muted { color: var(--text-muted); font-weight: normal; margin-left: 4px; }
 
 .line-actions {
   display: flex;
@@ -1120,7 +1519,7 @@ select:focus, input:focus {
 
 .btn-icon-action {
   border: none;
-  background: #f1f5f9;
+  background: var(--info-bg);
   border-radius: 8px;
   width: 34px;
   height: 34px;
@@ -1129,11 +1528,11 @@ select:focus, input:focus {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
-.btn-icon-action.edit:hover { background: #e0e7ff; color: #4338ca; }
-.btn-icon-action.delete:hover { background: #fee2e2; color: #ef4444; }
+.btn-icon-action.edit:hover { background: rgba(99, 102, 241, 0.12); color: #6366f1; }
+.btn-icon-action.delete:hover { background: var(--danger-bg); color: #ef4444; }
 
 /* ── Edit Mode ── */
 .edit-mode {
@@ -1141,7 +1540,7 @@ select:focus, input:focus {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  background: var(--bg-card-2, #f8fafc);
+  background: var(--info-bg);
   padding: 1rem;
   border-radius: 10px;
 }
@@ -1158,7 +1557,9 @@ select:focus, input:focus {
   padding: 0.55rem 0.75rem;
   font-size: 0.9rem;
   border-radius: 8px;
-  border: 1.5px solid var(--border-2, #cbd5e1);
+  border: 1.5px solid var(--border-2);
+  background: var(--bg-input);
+  color: var(--text-main);
 }
 
 .edit-qty-row {
@@ -1193,38 +1594,126 @@ select:focus, input:focus {
 
 .btn-sm.save { background: linear-gradient(135deg, #10b981, #059669); color: white; }
 .btn-sm.save:hover { transform: translateY(-1px); }
-.btn-sm.cancel { background: #e2e8f0; color: #64748b; }
-.btn-sm.cancel:hover { background: #cbd5e1; }
+.btn-sm.cancel { background: var(--border-2); color: var(--text-muted); }
+.btn-sm.cancel:hover { background: var(--border); }
 
-/* ── Modal ── */
+/* ── Modal & Overlay ── */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  padding: 1rem;
+}
+
+.main-form-modal {
+  padding: 1.5rem;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 780px;
+  max-height: 88vh;
+  overflow-y: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--modal-bg);
+  border: 1px solid var(--border-2);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: modal-slide-up 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background: var(--modal-bg);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+  border-radius: 20px 20px 0 0;
+}
+
+.modal-body {
+  overflow-y: auto;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.modal-content .title-icon {
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.12);
+  padding: 0.4rem;
+  border-radius: 10px;
+  -webkit-text-fill-color: initial;
+}
+
+.header-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-main);
+}
+
+.header-title p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.btn-close-modal {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 50%;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-close-modal:hover {
+  background: var(--info-bg);
+  color: #ef4444;
+}
+
+@keyframes modal-slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 .modal-card {
-  background: white;
+  background: var(--modal-bg);
   padding: 2rem;
   border-radius: 20px;
   width: 90%;
   max-width: 400px;
   text-align: center;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-2);
   animation: modal-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .modal-icon {
-  background: #fee2e2;
-  width: 80px;
-  height: 80px;
+  background: var(--danger-bg);
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  margin: 0 auto 1.5rem auto;
+  margin: 0 auto 1.25rem auto;
   color: #ef4444;
   display: flex;
   align-items: center;
@@ -1233,13 +1722,13 @@ select:focus, input:focus {
 
 .modal-card h3 {
   margin: 0 0 0.5rem 0;
-  color: #1f2937;
-  font-size: 1.4rem;
+  color: var(--text-main);
+  font-size: 1.3rem;
 }
 
 .modal-card p {
-  color: #6b7280;
-  margin-bottom: 2rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
 }
 
 .modal-actions {
@@ -1258,8 +1747,8 @@ select:focus, input:focus {
   transition: all 0.2s;
 }
 
-.btn-modal.secondary { background: #f3f4f6; color: #4b5563; }
-.btn-modal.secondary:hover { background: #e5e7eb; }
+.btn-modal.secondary { background: var(--info-bg); color: var(--text-muted); }
+.btn-modal.secondary:hover { background: var(--border-2); }
 .btn-modal.danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 12px rgba(239,68,68,0.25); }
 .btn-modal.danger:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(239,68,68,0.35); }
 
@@ -1270,6 +1759,23 @@ select:focus, input:focus {
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* ── List Transitions ── */
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.list-enter-from {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+.list-move {
+  transition: transform 0.4s ease;
+}
 
 /* ── Loading ── */
 .loading-state {
@@ -1286,5 +1792,116 @@ select:focus, input:focus {
   .totals-row { grid-template-columns: 1fr; }
   .form-card { padding: 1.5rem; }
   .qty-grid { grid-template-columns: 1fr; }
+}
+.status-badge-main {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  letter-spacing: 0.05em;
+}
+
+.status-process { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+.status-completed { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.status-partial { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.status-cancelled { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+.title-status-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.25rem; }
+.item-status-pill { font-size: 0.62rem; font-weight: 800; text-transform: uppercase; padding: 0.15rem 0.4rem; border-radius: 4px; }
+.divider-v { width: 1px; height: 20px; background: var(--border-2); margin: 0 0.5rem; }
+
+.status-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-right: 0.5rem;
+}
+
+.btn-status-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1.5px solid var(--border-2);
+  background: white;
+}
+
+.btn-status-action.complete { color: #10b981; }
+.btn-status-action.complete:hover { background: #d1fae5; border-color: #10b981; }
+.btn-status-action.partial { color: #f59e0b; }
+.btn-status-action.partial:hover { background: #fef3c7; border-color: #f59e0b; }
+.btn-status-action.cancel { color: #ef4444; }
+.btn-status-action.cancel:hover { background: #fee2e2; border-color: #ef4444; }
+.btn-status-action.reset { color: #6366f1; }
+.btn-status-action.reset:hover { background: #eef2ff; border-color: #6366f1; }
+
+/* Status Modals Specifics */
+.compact-status { max-width: 450px !important; padding: 1.5rem !important; }
+.modal-header-compact { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+.modal-header-compact h3 { margin: 0; font-size: 1.1rem; font-weight: 800; }
+.modal-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+.partial-list { max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; padding-right: 0.5rem; }
+.partial-input-row { display: flex; flex-direction: column; gap: 0.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-2); }
+.partial-input-row:last-child { border-bottom: none; }
+.p-desc { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
+.p-inputs { display: flex; align-items: center; justify-content: space-between; }
+.p-meta { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+.input-mini { width: 80px !important; padding: 0.4rem 0.6rem !important; font-size: 0.85rem !important; }
+.reason-form { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; }
+.reason-form label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+.reason-form textarea { width: 100%; border-radius: 8px; border: 1.5px solid var(--border-2); padding: 0.75rem; font-size: 0.9rem; }
+.info-only .readonly-val { padding: 0.7rem 0; font-weight: 800; color: var(--brand-primary); font-size: 1.1rem; }
+
+.tech-tag.vehicle {
+  background: #f1f5f9;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.existing-team-info {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1rem 1.25rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+}
+
+.team-icon { color: #0369a1; }
+.team-label { font-size: 0.75rem; font-weight: 700; color: #0369a1; text-transform: uppercase; margin: 0; }
+.team-names { font-size: 1rem; color: #0c4a6e; margin: 0.15rem 0; }
+.team-vehicle { font-size: 0.85rem; font-weight: 700; color: #0c4a6e; display: flex; align-items: center; gap: 0.35rem; margin: 0; }
+
+.btn-release-vehicle {
+  background: #f1f5f9;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-release-vehicle {
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1.5px solid #fee2e2;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 0.5rem;
+}
+
+.btn-release-vehicle:hover {
+  background: #fee2e2;
+  transform: translateY(-1px);
 }
 </style>

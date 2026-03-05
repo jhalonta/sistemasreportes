@@ -1,20 +1,32 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { LayoutDashboard, DollarSign, CheckCircle, TrendingUp, TrendingDown, Zap, Search } from 'lucide-vue-next';
-import { useActivities } from '../composables/useActivities';
+import { useActivityStore } from '../features/activities/store/activityStore';
 import { useGlobalStore } from '../stores/global';
+import { useAuthStore } from '../features/auth/store/authStore';
+import { useTechnicianStore } from '../features/technicians/store/technicianStore';
 import { storeToRefs } from 'pinia';
 import { Bar, Doughnut } from 'vue-chartjs';
 import {
   Chart as ChartJS, Title, Tooltip, Legend,
-  BarElement, ArcElement, CategoryScale, LinearScale
+  BarElement, ArcElement, CategoryScale, LinearScale,
+  BarController, DoughnutController
 } from 'chart.js';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend, BarController, DoughnutController);
 
-const { activities } = useActivities();
+const activityStore = useActivityStore();
 const globalStore = useGlobalStore();
+const authStore = useAuthStore();
+const techStore = useTechnicianStore();
 const { selectedDate } = storeToRefs(globalStore);
+
+onMounted(async () => {
+  await Promise.all([
+    activityStore.fetchActivities(),
+    techStore.fetchTechnicians()
+  ]);
+});
 
 // ── Filter mode: 'day' | 'month' ──────────────────────────────────────
 const filterMode = ref('day');
@@ -24,7 +36,20 @@ const filteredActivities = computed(() => {
   const key = filterMode.value === 'day'
     ? selectedDate.value                    // YYYY-MM-DD
     : selectedDate.value.substring(0, 7);  // YYYY-MM
-  return activities.value.filter(a => a.timestamp.startsWith(key));
+    
+  let filtered = activityStore.activities.filter(a => a.timestamp.startsWith(key));
+  
+  // Filter by Sede if applicable
+  const profile = authStore.userProfile;
+  if (profile?.role === 'sede') {
+    // Only activities where the main technician belongs to this sede
+    filtered = filtered.filter(a => {
+      const tech = techStore.technicians.find(t => t.id === a.mainTechId);
+      return tech && tech.locationId === profile.locationId;
+    });
+  }
+  
+  return filtered;
 });
 
 // ── KPI Totals ─────────────────────────────────────────────────────────

@@ -1,16 +1,26 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { auth } from '../firebase';
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { authService } from '../services/authService';
+import { userService } from '../services/userService';
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null);
+  const userProfile = ref(null);
   const loading = ref(true);
   const error = ref(null);
   
-  // Let the app know we are checking state immediately
-  onAuthStateChanged(auth, (currentUser) => {
+  // Initialize auth state listener
+  authService.onAuthStateChanged(async (currentUser) => {
     user.value = currentUser;
+    if (currentUser) {
+      try {
+        userProfile.value = await userService.getUserProfile(currentUser.uid);
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+      }
+    } else {
+      userProfile.value = null;
+    }
     loading.value = false;
   });
 
@@ -18,11 +28,10 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // user stat is updated by onAuthStateChanged automatically
+      await authService.login(email, password);
     } catch (err) {
       console.error('Error logging in:', err);
-      // Provide user friendly error messages
+      // User friendly error messages
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         error.value = 'Correo electrónico o contraseña incorrectos.';
       } else {
@@ -38,7 +47,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      await signOut(auth);
+      await authService.logout();
     } catch (err) {
       console.error('Error logging out:', err);
       error.value = 'Error al cerrar sesión.';
@@ -49,6 +58,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user,
+    userProfile,
     loading,
     error,
     login,

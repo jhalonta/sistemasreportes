@@ -1,0 +1,569 @@
+[
+    {
+        "code": "CS01",
+        "name": "Corte en fusible o interruptor (tapa sin ranura)",
+        "category": "CORTES DEL SERVICIO EN BT",
+        "priceUrban": 6.79,
+        "priceRural": 6.02
+    },
+    {
+        "code": "CS02",
+        "name": "Corte en Interuptor (tapa con ranura)",
+        "category": "CORTES DEL SERVICIO EN BT",
+        "priceUrban": 5.49,
+        "priceRural": 4.93
+    },
+    {
+        "code": "CS03",
+        "name": "Corte en caja de medición (aislamiento de acometida de acometida)",
+        "category": "CORTES DEL SERVICIO EN BT",
+        "priceUrban": 9.44,
+        "priceRural": 7.91
+    },
+    {
+        "code": "CS04",
+        "name": "Corte en línea aérea (Empalme)",
+        "category": "CORTES DEL SERVICIO EN BT",
+        "priceUrban": 21.83,
+        "priceRural": 18.88
+    },
+    {
+        "code": "CS05",
+        "name": "Corte en fusible o interruptor (tapa sin ranura)",
+        "category": "CORTES DEL SERVICIO EN BT",
+        "priceUrban": 8.73,
+        "priceRural": 7.91
+    },
+    {
+        "code": "CS06",
+        "name": "Corte en Interuptor (tapa con ranura)",
+        "category": "CORTES DEL SERVICIO EN BT",
+        "priceUrban": 10.03,
+        "priceRural": 6.84
+    },
+    {
+        "code": "CS07",
+        "name": "Corte en caja de medición (aislamiento de acometida)",
+        "category": "CORTES DEL SERVICIO EN BT",
+        "priceUrban": 12.98,
+        "priceRural": 10.62
+    },
+    {
+        "code": "CS08",
+        "name": "Corte en línea aérea (Empalme)",
+        "category": "CORTES DEL SERVICIO EN BT",
+        "priceUrban": 23.60,
+        "priceRural": 21.24
+    },
+    {
+        "code": "RX01",
+        "name": "Reconexión en fusible o interruptor (tapa sin ranura)",
+        "category": "RECONEXIONES DEL SERVICIO EN BT",
+        "priceUrban": 6.79,
+        "priceRural": 6.02
+    },
+    {
+        "code": "RX02",
+        "name": "Reconexión en Interuptor (tapa con ranura)",
+        "category": "RECONEXIONES DEL SERVICIO EN BT",
+        "priceUrban": 5.49,
+        "priceRural": 4.93
+    },
+    {
+        "code": "RX03",
+        "name": "Reconexión en caja de medición (Aislamiento de acometida)",
+        "category": "RECONEXIONES DEL SERVICIO EN BT",
+        "priceUrban": 9.44,
+        "priceRural": 7.91
+    },
+    {
+        "code": "RX04",
+        "name": "Reconexión en línea aérea (Empalme)",
+        "category": "RECONEXIONES DEL SERVICIO EN BT",
+        "priceUrban": 21.83,
+        "priceRural": 18.88
+    },
+    {
+        "code": "RX05",
+        "name": "Reconexión en fusible o interruptor (tapa sin ranura)",
+        "category": "RECONEXIONES DEL SERVICIO EN BT",
+        "priceUrban": 8.73,
+        "priceRural": 7.91
+    },
+    {
+        "code": "RX06",
+        "name": "Reconexión en Interuptor (tapa con ranura)",
+        "category": "RECONEXIONES DEL SERVICIO EN BT",
+        "priceUrban": 10.03,
+        "priceRural": 6.84
+    },
+    {
+        "code": "RX07",
+        "name": "Reconexión en caja de medición (Aislamiento de acometida)",
+        "category": "RECONEXIONES DEL SERVICIO EN BT",
+        "priceUrban": 12.98,
+        "priceRural": 10.62
+    },
+    {
+        "code": "RX08",
+        "name": "Reconexión en línea aérea (Empalme)",
+        "category": "RECONEXIONES DEL SERVICIO EN BT",
+        "priceUrban": 23.60,
+        "priceRural": 21.24
+    },
+    {
+        "code": "RT01",
+        "name": "Retiros de Conexión aéreo",
+        "category": "RETIRO DEL SERVICIO EN BT",
+        "priceUrban": 43.66,
+        "priceRural": 28.32
+    },
+    {
+        "code": "RT02",
+        "name": "Retiros de Conexión subterránea",
+        "category": "RETIRO DEL SERVICIO EN BT",
+        "priceUrban": 76.70,
+        "priceRural": 64.90
+    },
+    {
+        "code": "RT03",
+        "name": "Retiros de Conexión aéreo",
+        "category": "RETIRO DEL SERVICIO EN BT",
+        "priceUrban": 51.92,
+        "priceRural": 41.30
+    },
+    {
+        "code": "RT04",
+        "name": "Retiros de Conexión subterránea",
+        "category": "RETIRO DEL SERVICIO EN BT",
+        "priceUrban": 76.70,
+        "priceRural": 76.70
+    },
+    {
+        "code": "LM01",
+        "name": "Lectura de Medidores de Energia Activa (Incluye Consistencias)",
+        "category": "PROCESO DE FACTURACIÓN",
+        "priceUrban": 0.55,
+        "priceRural": 0.47
+    },
+    {
+        "code": "LM02",
+        "name": "Lectura de Medidores Ubicado en Poste",
+        "category": "PROCESO DE FACTURACIÓN",
+        "priceUrban": 6.79,
+        "priceRural": 4.68
+    },
+    {
+        "code": "LM03",
+        "name": "Reparto de recibos",
+        "category": "PROCESO DE FACTURACIÓN",
+        "priceUrban": 0.50,
+        "priceRural": 0.46
+    },
+    {
+        "code": "LM04",
+        "name": "Reparto de noticicaciones (documentos varios)",
+        "category": "PROCESO DE FACTURACIÓN",
+        "priceUrban": 5.90,
+        "priceRural": 4.13
+    },
+    {
+        "code": "AC01",
+        "name": "Inspección de suministros",
+        "category": "ACTIVIDADES COMPLEMENTARIAS",
+        "priceUrban": 8.85,
+        "priceRural": 7.67
+    },
+    {
+        "code": "AC02",
+        "name": "Inspección de suministros por repaso de cortes",
+        "category": "ACTIVIDADES COMPLEMENTARIAS",
+        "priceUrban": 5.55,
+        "priceRural": 4.13
+    },
+    {
+        "code": "AC03",
+        "name": "Codificación de código de ruta",
+        "category": "ACTIVIDADES COMPLEMENTARIAS",
+        "priceUrban": 6.67,
+        "priceRural": 5.13
+    },
+    {
+        "code": "AC04",
+        "name": "Reubicación de medidores de interiores",
+        "category": "ACTIVIDADES COMPLEMENTARIAS",
+        "priceUrban": 135.70,
+        "priceRural": 129.80
+    },
+    {
+        "code": "AC05",
+        "name": "Cambio de medidor monofásico",
+        "category": "ACTIVIDADES COMPLEMENTARIAS",
+        "priceUrban": 37.76,
+        "priceRural": 27.14
+    },
+    {
+        "code": "AC06",
+        "name": "Cambio de medidor trifásico",
+        "category": "ACTIVIDADES COMPLEMENTARIAS",
+        "priceUrban": 44.84,
+        "priceRural": 37.76
+    },
+    {
+        "code": "AC07",
+        "name": "Cambio de interruptor termomagnético",
+        "category": "ACTIVIDADES COMPLEMENTARIAS",
+        "priceUrban": 17.70,
+        "priceRural": 12.98
+    },
+    {
+        "code": "GCM01",
+        "name": "Corte en BT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 59.00,
+        "priceRural": 47.20
+    },
+    {
+        "code": "GCM02",
+        "name": "Corte en MT - PMI",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 86.14,
+        "priceRural": 62.54
+    },
+    {
+        "code": "GCM03",
+        "name": "Corte en MT celda",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 94.40,
+        "priceRural": 82.60
+    },
+    {
+        "code": "GCM04",
+        "name": "Reconexión en BT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 59.00,
+        "priceRural": 47.20
+    },
+    {
+        "code": "GCM05",
+        "name": "Reconexión en MT - PMI",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 86.14,
+        "priceRural": 62.54
+    },
+    {
+        "code": "GCM06",
+        "name": "Reconexión en MT - celda",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 94.40,
+        "priceRural": 82.60
+    },
+    {
+        "code": "GCM07",
+        "name": "Conexión básica en baja tensión",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 212.40,
+        "priceRural": 194.70
+    },
+    {
+        "code": "GCM08",
+        "name": "Conexión básica en MT salida a PMI con trafomix",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 731.60,
+        "priceRural": 702.10
+    },
+    {
+        "code": "GCM09",
+        "name": "Conexión básica en MT salida a PMI trafomix",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 536.90,
+        "priceRural": 513.30
+    },
+    {
+        "code": "GCM10",
+        "name": "Conexión básica en MT salida a CASETA con trafomix",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 837.80,
+        "priceRural": 719.80
+    },
+    {
+        "code": "GCM11",
+        "name": "Conexión básica en MT salida a CASETA sin trafomix",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 708.00,
+        "priceRural": 590.00
+    },
+    {
+        "code": "GCM12",
+        "name": "Retiro de sistema de medición en MT salida a PMI con trafomix",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 826.00,
+        "priceRural": 743.40
+    },
+    {
+        "code": "GCM13",
+        "name": "Retiro de sistema de medición en MT salida a PMI sin trafomix",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 330.40,
+        "priceRural": 306.80
+    },
+    {
+        "code": "GCM14",
+        "name": "Retiro de sistema de medicón en MT salida a CASETA con trafomix",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 684.40,
+        "priceRural": 649.00
+    },
+    {
+        "code": "GCM15",
+        "name": "Retiro de sistema de medicón en MT salida a CASETA sin trafomix",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 188.80,
+        "priceRural": 165.20
+    },
+    {
+        "code": "GCM16",
+        "name": "Retiro de sistema de medición en BT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 106.20,
+        "priceRural": 88.50
+    },
+    {
+        "code": "GCM17",
+        "name": "Lectura de medidores electrónicos multifunción incluye ingreso de lectura al sistema comercial y la consistencia",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 5.90,
+        "priceRural": 4.48
+    },
+    {
+        "code": "GCM18",
+        "name": "Entrega de recibos de clientes mayores",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 5.25,
+        "priceRural": 4.07
+    },
+    {
+        "code": "GCM19",
+        "name": "Descarga de estado y memoria masa del medidor multifuncón",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 24.78,
+        "priceRural": 19.47
+    },
+    {
+        "code": "GCM20",
+        "name": "Reparto de notificaiones, actas y resuluciones (documentos varios)",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 7.67,
+        "priceRural": 5.66
+    },
+    {
+        "code": "GCM21",
+        "name": "Atención de avería o falta de servicio en BT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 69.38,
+        "priceRural": 45.10
+    },
+    {
+        "code": "GCM22",
+        "name": "Atención de avería o falta de servicio en MT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 76.70,
+        "priceRural": 54.20
+    },
+    {
+        "code": "GCM23",
+        "name": "Instalación o cambio de medidor multifunción",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 52.04,
+        "priceRural": 40.47
+    },
+    {
+        "code": "GCM24",
+        "name": "Instalación o cambio de caja portamedidor",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 80.95,
+        "priceRural": 69.38
+    },
+    {
+        "code": "GCM25",
+        "name": "Instalación o cambio de sistema de protección en BT (interruptor termomagnético)",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 28.91,
+        "priceRural": 26.60
+    },
+    {
+        "code": "GCM26",
+        "name": "Instalación o cambio de sistema de protección en (fusibles MT)",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 88.50,
+        "priceRural": 54.28
+    },
+    {
+        "code": "GCM27",
+        "name": "Instalación o cambio de cable de control",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 67.07,
+        "priceRural": 55.51
+    },
+    {
+        "code": "GCM28",
+        "name": "Instalación o cambio de conductor de acometida en BT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 63.60,
+        "priceRural": 52.04
+    },
+    {
+        "code": "GCM29",
+        "name": "Instalación o cambio de transformadores de medida en BT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 277.54,
+        "priceRural": 219.72
+    },
+    {
+        "code": "GCM30",
+        "name": "Instalación o cambio de transformadores de medida en MT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 514.60,
+        "priceRural": 398.96
+    },
+    {
+        "code": "GCM31",
+        "name": "Instalación o cambio de sistema de comunicación",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 22.03,
+        "priceRural": 21.03
+    },
+    {
+        "code": "GCM32",
+        "name": "Instalación o cambio de tubo de bastón",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 16.52,
+        "priceRural": 15.77
+    },
+    {
+        "code": "GCM33",
+        "name": "Instalación o cambio de conductores aéreos MT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 16.52,
+        "priceRural": 15.77
+    },
+    {
+        "code": "GCM34",
+        "name": "Instalación y retiro de analizadores de redes",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 76.32,
+        "priceRural": 72.85
+    },
+    {
+        "code": "GCM35",
+        "name": "Picado de nicho para acondicionamiento de caja portamedidores y tubo para acometida",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 219.72,
+        "priceRural": 167.68
+    },
+    {
+        "code": "GCM36",
+        "name": "Reubicación de sistema de medición en BT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 237.06,
+        "priceRural": 225.50
+    },
+    {
+        "code": "GCM37",
+        "name": "Reubicación de sistema de medición en MT con trafomix",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 979.40,
+        "priceRural": 808.30
+    },
+    {
+        "code": "GCM38",
+        "name": "Reubicación de sistema de medición en MT sin trafomix",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 275.33,
+        "priceRural": 262.82
+    },
+    {
+        "code": "GCM39",
+        "name": "Medición del nivel de aislamiento de transformación de transformadores mixtos de medida",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 88.11,
+        "priceRural": 84.10
+    },
+    {
+        "code": "GCM40",
+        "name": "Medición del nivel de aislamiento de transformadores de distribución particular",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 77.09,
+        "priceRural": 73.59
+    },
+    {
+        "code": "GCM41",
+        "name": "Medición de nivel de aislamiento de conductores y otras instalaciones",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 93.61,
+        "priceRural": 89.36
+    },
+    {
+        "code": "GCM42",
+        "name": "Medición de resistencia de pozo a tierra",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 52.86,
+        "priceRural": 50.46
+    },
+    {
+        "code": "GCM43",
+        "name": "Revisión de conexión - Medición en BT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 99.12,
+        "priceRural": 94.61
+    },
+    {
+        "code": "GCM44",
+        "name": "Revisión de conexión - Medición en MT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 113.33,
+        "priceRural": 108.70
+    },
+    {
+        "code": "GCM45",
+        "name": "Inspección para factibilidades de clientes mayores y BT y MT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 59.00,
+        "priceRural": 35.40
+    },
+    {
+        "code": "GCM46",
+        "name": "Inspeccón por (consumo elevado, retiro, reubicación, reclamos y otro)",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 165.20,
+        "priceRural": 102.66
+    },
+    {
+        "code": "GCM47",
+        "name": "Construcción de sistema de puesta a tierra",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 971.38,
+        "priceRural": 878.86
+    },
+    {
+        "code": "GCM48",
+        "name": "Construcción de murete",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 997.10,
+        "priceRural": 879.10
+    },
+    {
+        "code": "GCM49",
+        "name": "Instalación de terminaciones para cable ne media tensión",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 755.20,
+        "priceRural": 548.70
+    },
+    {
+        "code": "GCM50",
+        "name": "Actualización de ubicación eléctrica de suministros en BT y MT",
+        "category": "GESTIÓN DE CLIENTES MAYORES Y LIBRES",
+        "priceUrban": 46.26,
+        "priceRural": 40.47
+    }
+]

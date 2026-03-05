@@ -3,6 +3,9 @@ import { ref, computed } from 'vue';
 import { Table, CalendarDays, Calendar, FileText, FileDown, Download, Sheet, BarChart3, Search } from 'lucide-vue-next';
 import { useReports } from '../composables/useReports';
 import { useGlobalStore } from '../stores/global';
+import { useAttendanceStore } from '../features/attendance/store/attendanceStore';
+import { useTechnicianStore } from '../features/technicians/store/technicianStore';
+import { useActivityStore } from '../features/activities/store/activityStore';
 import { storeToRefs } from 'pinia';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -20,15 +23,44 @@ import { Bar } from 'vue-chartjs';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const { generateDailyReport, generateMonthlyDailyReports, generateExcelReport } = useReports();
+const { 
+  generateDailyReport, 
+  generateMonthlyDailyReports, 
+  generateExcelReport,
+  downloadDailyReportPdf,
+  downloadMonthlyAttendancePdf
+} = useReports();
 
 const globalStore = useGlobalStore();
 const { selectedDate } = storeToRefs(globalStore);
+const attendanceStore = useAttendanceStore();
+const techStore = useTechnicianStore();
+const activityStore = useActivityStore();
 
-const printMode = ref(null); // kept for v-if template compatibility
+import { onMounted, watch } from 'vue';
+
+onMounted(async () => {
+  await Promise.all([
+    techStore.fetchTechnicians(),
+    attendanceStore.fetchMonthlyAttendance(),
+    activityStore.fetchActivities()
+  ]);
+});
+
+watch(selectedDate, async (newDate) => {
+  if (newDate) {
+    const ym = newDate.substring(0, 7);
+    await attendanceStore.fetchMonthlyAttendance(ym);
+  }
+});
+
+const printMode = ref(null); 
 const isGeneratingPdf = ref(false);
 
-const reportData = computed(() => generateDailyReport(selectedDate.value));
+const reportData = computed(() => {
+  if (techStore.technicians.length === 0) return [];
+  return generateDailyReport(selectedDate.value);
+});
 
 const formattedDateHeader = computed(() => {
     if (!selectedDate.value) return '';
@@ -44,17 +76,17 @@ const formatHeaderDate = (dateString) => {
 
 // Chart Data Logic
 // Chart Data Logic
-import { useActivities } from '../composables/useActivities';
-import { personnel } from '../data/personnel';
+// Removed: import { useActivities } from '../composables/useActivities';
+// Removed: import { personnel } from '../data/personnel';
 
-const { activities } = useActivities();
+// Removed: const { activities } = useActivities();
 
 const chartData = computed(() => {
   // Filter activities for the selected date
   // We use the raw activities store instead of reportData to avoid per-person duplication
   if (!selectedDate.value) return { labels: [], datasets: [] };
   
-  const dayActivities = activities.value.filter(a => a.timestamp.startsWith(selectedDate.value));
+  const dayActivities = activityStore.activities.filter(a => a.timestamp.startsWith(selectedDate.value));
   
   // Group activities by "Squad" (Main Tech + Partner)
   const squads = {};
@@ -84,14 +116,14 @@ const chartData = computed(() => {
   });
 
   const labels = Object.values(squads).map(squad => {
-      const main = personnel.find(p => p.id === squad.mainId)?.name || 'Desconocido';
+      const main = techStore.technicians.find(p => p.id === squad.mainId)?.fullName || 'Desconocido';
       // Try to use shorter name: First Last
       const shortName = (fullName) => {
           const parts = fullName.split(' ');
-          return parts.length > 2 ? `${parts[0]} ${parts[2] || parts[1]}` : fullName;
+          return parts.length > 1 ? `${parts[0]} ${parts[parts.length-1]}` : fullName;
       };
 
-      const partner = squad.partnerId ? personnel.find(p => p.id === squad.partnerId)?.name : null;
+      const partner = squad.partnerId ? techStore.technicians.find(p => p.id === squad.partnerId)?.fullName : null;
       
       if (partner) {
           return `${shortName(main)} & ${shortName(partner)}`;
@@ -145,183 +177,11 @@ const chartOptions = {
   }
 };
 
-// --- jsPDF Direct Download ---
-
-const buildPdfForDays = (dayReports, filename) => {
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-    dayReports.forEach((report, idx) => {
-        if (idx > 0) doc.addPage();
-
-        const formattedDate = new Date(report.date + 'T00:00:00').toLocaleDateString('es-PE', {
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        }).toUpperCase();
-
-        // ---- Header ----
-        const pageWidth = doc.internal.pageSize.getWidth();
-        let y = 14;
-
-        // ---- Company Name (large, like the original) ----
-        doc.setFontSize(26);
-        doc.setFont('helvetica', 'bold');
-
-        const title1 = 'CONSORCIO ';
-        const title2 = 'GALCAS';
-        const title3 = ' INGENIEROS';
-        const totalW = doc.getTextWidth(title1 + title2 + title3);
-        let tx = (pageWidth - totalW) / 2;
-
-        doc.setTextColor(0, 158, 96);   // green
-        doc.text(title1, tx, y);
-        tx += doc.getTextWidth(title1);
-
-        doc.setTextColor(41, 98, 200);  // lighter blue
-        doc.text(title2, tx, y);
-        tx += doc.getTextWidth(title2);
-
-        // --- Yellow 4-pointed compass star between GALCAS and INGENIEROS ---
-        const starCx = tx + 7;  // horizontal center: more space after GALCAS
-        const starCy = y - 4;     // vertical center: align with text cap height
-        const starR  = 3.5;       // outer radius (mm)
-        const starR2 = starR * 0.28; // inner radius (sharp points)
-
-        const starPts = [];
-        for (let i = 0; i < 8; i++) {
-            const angle = (i * 45 - 90) * (Math.PI / 180);
-            const r = (i % 2 === 0) ? starR : starR2;
-            starPts.push([starCx + r * Math.cos(angle), starCy + r * Math.sin(angle)]);
-        }
-        const starLines = starPts.slice(1).map((pt, idx) => [
-            pt[0] - starPts[idx][0],
-            pt[1] - starPts[idx][1]
-        ]);
-
-        doc.setFillColor(255, 200, 0);   // bright yellow
-        doc.setDrawColor(255, 180, 0);   // slightly darker yellow border
-        doc.setLineWidth(0.1);
-        doc.lines(starLines, starPts[0][0], starPts[0][1], [1, 1], 'FD', true);
-
-        // Reset draw color and continue with INGENIEROS
-        doc.setDrawColor(0, 0, 0);
-        tx += 14; // more space around the star
-        doc.setTextColor(0, 158, 96);   // green
-        doc.text(title3, tx, y);
-
-
-        // ---- RUC and Address (left side, small) ----
-        y += 5;
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 0, 0);
-        doc.text('RUC: 20612913766', 14, y);
-        y += 4;
-        doc.text('DIRECCIÓN: AV. SALAVERRY N° 2415 INT. 202 - SAN ISIDRO - LIMA', 14, y);
-
-        // ---- Report Title (center) + FECHA (right), same row ----
-        y += 7;
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text('REGISTRO DE ASISTENCIA DIARIA DEL PERSONAL OPERATIVO', pageWidth / 2, y, { align: 'center' });
-
-        // underline
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.3);
-        const titleW = doc.getTextWidth('REGISTRO DE ASISTENCIA DIARIA DEL PERSONAL OPERATIVO');
-        doc.line((pageWidth - titleW) / 2, y + 0.6, (pageWidth + titleW) / 2, y + 0.6);
-
-        // FECHA on the RIGHT of the same row as the title
-        doc.setFontSize(8);
-        doc.text(`FECHA: ${formattedDate}`, pageWidth - 14, y, { align: 'right' });
-
-        // ---- PERSONAL OPERATIVO ----
-        y += 6;
-        doc.setFontSize(8);
-        doc.text('PERSONAL OPERATIVO:', 14, y);
-
-        y += 4;
-
-
-        // ---- Table ----
-        const rows = report.rows;
-        const tableBody = rows.map(row => [
-            row.item,
-            row.name,
-            row.dni || '',
-            row.role || '',
-            row.checkIn || '',
-            row.checkOut || '',
-            row.activitiesList.map(a => a.description || '').join('\n'),
-            row.activitiesList.map(a => a.assigned || '').join('\n'),
-            row.activitiesList.map(a => a.completed || '').join('\n'),
-            '' // Firma
-        ]);
-
-        autoTable(doc, {
-            startY: y,
-            margin: { left: 14, right: 14 },
-            head: [
-                [
-                    { content: 'ITEM', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'APELLIDOS Y NOMBRES', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'DNI', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'CARGO', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'HORARIO LABORAL', colSpan: 2, styles: { halign: 'center' } },
-                    { content: 'PRODUCCIÓN / ACTIVIDAD', colSpan: 3, styles: { halign: 'center' } },
-                    { content: 'FIRMA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                ],
-                [
-                    { content: 'ING.', styles: { halign: 'center' } },
-                    { content: 'SAL.', styles: { halign: 'center' } },
-                    { content: 'CÓDIGO', styles: { halign: 'center' } },
-                    { content: 'ASIGNADA', styles: { halign: 'center' } },
-                    { content: 'REALIZADA', styles: { halign: 'center' } },
-                ]
-            ],
-            body: tableBody,
-            headStyles: {
-                fillColor: [229, 231, 235],
-                textColor: [0, 0, 0],
-                fontStyle: 'bold',
-                fontSize: 7,
-                lineColor: [0, 0, 0],
-                lineWidth: 0.2,
-            },
-            bodyStyles: {
-                fontSize: 6.5,
-                lineColor: [0, 0, 0],
-                lineWidth: 0.2,
-                valign: 'middle',
-            },
-            columnStyles: {
-                0: { halign: 'center', cellWidth: 8 },   // ITEM
-                1: { halign: 'left',   cellWidth: 65 },  // NOMBRE (ampliado para nombres largos)
-                2: { halign: 'center', cellWidth: 20 },  // DNI
-                3: { halign: 'left',   cellWidth: 30 },  // CARGO
-                4: { halign: 'center', cellWidth: 12 },  // ING
-                5: { halign: 'center', cellWidth: 12 },  // SAL
-                6: { halign: 'center', cellWidth: 28 },  // CODIGO (corto como AC01)
-                7: { halign: 'center', cellWidth: 22 },  // ASIGNADA
-                8: { halign: 'center', cellWidth: 22 },  // REALIZADA
-                9: { halign: 'center', cellWidth: 32 },  // FIRMA (ampliada)
-            },
-            didParseCell: (data) => {
-                // Highlight absent rows in light red
-                const rowData = rows[data.row.index];
-                if (data.section === 'body' && rowData && rowData.checkIn === 'NO ASISTIÓ') {
-                    data.cell.styles.fillColor = [254, 226, 226];
-                }
-            },
-        });
-    });
-
-    doc.save(filename);
-};
-
 const printDailyReport = () => {
     if (!selectedDate.value) return;
     isGeneratingPdf.value = true;
     const rows = generateDailyReport(selectedDate.value);
-    buildPdfForDays([{ date: selectedDate.value, rows }], `Reporte_Diario_${selectedDate.value}.pdf`);
+    downloadDailyReportPdf([{ date: selectedDate.value, rows }], `Reporte_Diario_${selectedDate.value}.pdf`);
     isGeneratingPdf.value = false;
 };
 
@@ -337,11 +197,25 @@ const printMonthlyReports = () => {
         return;
     }
 
-    // generateMonthlyDailyReports returns { date, data } but we need { date, rows }
     const dayReports = monthlyReports.map(r => ({ date: r.date, rows: r.data }));
     const [year, month] = selectedDate.value.split('-');
-    buildPdfForDays(dayReports, `Reporte_Mensual_${year}_${month}.pdf`);
+    downloadDailyReportPdf(dayReports, `Reporte_Mensual_${year}_${month}.pdf`);
     isGeneratingPdf.value = false;
+};
+
+const printAttendanceGrid = async () => {
+    if (!selectedDate.value) return;
+    isGeneratingPdf.value = true;
+    const yearMonth = selectedDate.value.substring(0, 7);
+    
+    try {
+        await attendanceStore.fetchMonthlyAttendance(yearMonth);
+        await downloadMonthlyAttendancePdf(yearMonth);
+    } catch (e) {
+        console.error(e);
+    } finally {
+        isGeneratingPdf.value = false;
+    }
 };
 
 </script>
@@ -376,11 +250,15 @@ const printMonthlyReports = () => {
         <div class="card-actions">
           <button @click="printDailyReport" :disabled="isGeneratingPdf" class="btn-export btn-pdf">
             <Download :size="16" />
-            {{ isGeneratingPdf && printMode === 'daily' ? 'Generando...' : 'Reporte Diario' }}
+            {{ isGeneratingPdf ? 'Generando...' : 'Reporte Diario' }}
           </button>
-          <button @click="printMonthlyReports" :disabled="isGeneratingPdf" class="btn-export btn-pdf-alt">
+          <button @click="printMonthlyReports" :disabled="isGeneratingPdf" class="btn-export btn-pdf-alt" title="Reportes diarios individuales agrupados">
             <Download :size="16" />
-            {{ isGeneratingPdf && printMode === 'monthly' ? 'Generando...' : 'Todo el Mes' }}
+            {{ isGeneratingPdf ? 'Generando...' : 'Todo el Mes' }}
+          </button>
+          <button @click="printAttendanceGrid" :disabled="isGeneratingPdf" class="btn-export btn-pdf-grid">
+            <Download :size="16" />
+            {{ isGeneratingPdf ? 'Generando...' : 'Planilla Mensual' }}
           </button>
         </div>
       </div>
@@ -619,6 +497,17 @@ const printMonthlyReports = () => {
 .btn-pdf-alt:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 6px 18px rgba(99, 102, 241, 0.35);
+}
+
+.btn-pdf-grid {
+  background: linear-gradient(135deg, #0f172a, #334155);
+  color: white;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+}
+
+.btn-pdf-grid:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.35);
 }
 
 .btn-excel {

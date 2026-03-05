@@ -1,16 +1,19 @@
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { LayoutDashboard, Mail, Lock } from 'lucide-vue-next';
-import { useAuthStore } from '../stores/auth';
+import { useAuthStore } from '../store/authStore';
 
 const email = ref('');
 const password = ref('');
 const authStore = useAuthStore();
+const router = useRouter();
 
 const handleLogin = async () => {
   if (!email.value || !password.value) return;
   try {
     await authStore.login(email.value, password.value);
+    router.push({ name: 'dashboard' });
   } catch (err) {
     // Errors handled internally by authStore
   }

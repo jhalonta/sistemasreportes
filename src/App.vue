@@ -1,17 +1,17 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import AttendanceSystem from './components/AttendanceSystem.vue';
-import ActivityLog from './components/ActivityLog.vue';
-import ReportsView from './components/ReportsView.vue';
-import DashboardView from './components/DashboardView.vue';
+import { ref, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
 import NotificationToast from './components/NotificationToast.vue';
-import LoginView from './components/LoginView.vue';
 import AppSidebar from './components/AppSidebar.vue';
 import AppHeader from './components/AppHeader.vue';
-import { useAuthStore } from './stores/auth';
+import { useAuthStore } from './features/auth/store/authStore';
 
-const currentTab = ref('attendance');
 const authStore = useAuthStore();
+const route = useRoute();
+const router = useRouter();
+
+const isPublicRoute = computed(() => route.meta.public);
 
 // ── Theme toggle ──────────────────────────────────────────────────
 const isDark = ref(false);
@@ -24,6 +24,15 @@ function applyTheme(dark) {
 function toggleTheme() {
   isDark.value = !isDark.value;
   applyTheme(isDark.value);
+}
+
+async function handleLogout() {
+  try {
+    await authStore.logout();
+    router.push({ name: 'login' });
+  } catch (err) {
+    console.error('Logout failed:', err);
+  }
 }
 
 onMounted(() => {
@@ -43,20 +52,23 @@ onMounted(() => {
     <p>Cargando sesión...</p>
   </div>
 
-  <LoginView v-else-if="!authStore.user" />
+  <template v-else>
+    <!-- Public Layout -->
+    <main v-if="isPublicRoute" class="full-viewport">
+      <router-view />
+    </main>
 
-  <div v-else class="app-container">
-    <AppSidebar :currentTab="currentTab" @changeTab="currentTab = $event" />
-    <div class="main-wrapper">
-      <AppHeader :isDark="isDark" @toggleTheme="toggleTheme" @logout="authStore.logout()" />
-      <main class="content-area">
-        <AttendanceSystem v-if="currentTab === 'attendance'" />
-        <ActivityLog v-if="currentTab === 'activities'" />
-        <ReportsView v-if="currentTab === 'reports'" />
-        <DashboardView v-if="currentTab === 'dashboard'" />
-      </main>
+    <!-- App Layout -->
+    <div v-else class="app-container">
+      <AppSidebar />
+      <div class="main-wrapper">
+        <AppHeader :isDark="isDark" @toggleTheme="toggleTheme" @logout="handleLogout" />
+        <main class="content-area">
+          <router-view />
+        </main>
+      </div>
     </div>
-  </div>
+  </template>
 </template>
 
 <style scoped>
@@ -112,6 +124,16 @@ onMounted(() => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+.full-viewport {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--bg-main);
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {

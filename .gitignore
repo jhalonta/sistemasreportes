@@ -47,3 +47,4 @@ backend/*.pyc
 backend/serviceAccountKey.json
 .env
 push_output.txt
+sistemasreportes-firebase-adminsdk-fbsvc-bbbb7a12c2.json
