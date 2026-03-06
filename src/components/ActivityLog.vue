@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, watch } from 'vue';
-import { AlertTriangle, X, Pencil, Trash2, Check, PenLine, Plus, Users, ClipboardList, Save } from 'lucide-vue-next';
+import { AlertTriangle, X, Pencil, Trash2, Check, PenLine, Plus, Users, ClipboardList, Save, Building2, Truck } from 'lucide-vue-next';
 import { rates } from '../data/rates';
 import { useAttendanceStore } from '../features/attendance/store/attendanceStore';
 import { useTechnicianStore } from '../features/technicians/store/technicianStore';
@@ -8,6 +8,7 @@ import { useActivityStore } from '../features/activities/store/activityStore';
 import { useNotifications } from '../composables/useNotifications';
 import { useGlobalStore } from '../stores/global';
 import { useAuthStore } from '../features/auth/store/authStore';
+import { useLocationStore } from '../features/locations/store/locationStore';
 import { useVehicleStore } from '../features/vehicles/store/vehicleStore';
 import { storeToRefs } from 'pinia';;
 
@@ -20,13 +21,17 @@ const techStore = useTechnicianStore();
 const activityStore = useActivityStore();
 const authStore = useAuthStore();
 const vehicleStore = useVehicleStore();
+const locationStore = useLocationStore();
+
+const selectedSede = ref(''); // Admin filter
 
 onMounted(async () => {
   await Promise.all([
     techStore.fetchTechnicians(),
     attendanceStore.fetchAttendance(),
     activityStore.fetchActivities(),
-    vehicleStore.fetchVehicles()
+    vehicleStore.fetchVehicles(),
+    locationStore.fetchLocations()
   ]);
 });
 
@@ -127,9 +132,13 @@ const operationalPersonnel = computed(() => {
     // 2. Must be active
     if (!p.active) return false;
     
-    // 3. Role-based filter (Sede only sees their own)
-    if (profile?.role === 'sede' && p.locationId !== profile.locationId) {
-      return false;
+    // 3. Role-based filter
+    if (profile?.role === 'sede') {
+      // Sede only sees their own
+      if (p.locationId !== profile.locationId) return false;
+    } else if (profile?.role === 'admin' && selectedSede.value) {
+      // Admin filter by sede if selected
+      if (p.locationId !== selectedSede.value) return false;
     }
     
     // 4. User request: Don't show absent technicians in activity selection
@@ -197,7 +206,11 @@ const availableVehicles = computed(() => {
     // 1. Must be available
     if (v.estado !== 'disponible') return false;
     // 2. Sede-based filter
-    if (profile?.role === 'sede' && v.sedeId !== profile.locationId) return false;
+    if (profile?.role === 'sede') {
+      if (v.sedeId !== profile.locationId) return false;
+    } else if (profile?.role === 'admin' && selectedSede.value) {
+      if (v.sedeId !== selectedSede.value) return false;
+    }
     return true;
   });
 });
@@ -586,6 +599,20 @@ const resetForm = () => {
           <label for="act-date">Fecha</label>
           <input id="act-date" name="actDate" type="date" v-model="selectedDate" class="date-input" />
         </div>
+
+        <!-- Sede Filter for Admin -->
+        <div v-if="authStore.userProfile?.role === 'admin'" class="sede-filter-wrap">
+          <div class="filter-box">
+            <Building2 :size="18" class="filter-icon" />
+            <select v-model="selectedSede" class="sede-select">
+              <option value="">Todas las Sedes</option>
+              <option v-for="l in locationStore.locations" :key="l.id" :value="l.id">
+                {{ l.nombre }}
+              </option>
+            </select>
+          </div>
+        </div>
+
         <span class="mode-badge" v-if="!isToday">Modo Histórico</span>
         <button type="button" class="btn-assign" @click="openMainModal">
           <Plus :size="18" /> Asignar Trabajo
@@ -979,6 +1006,45 @@ const resetForm = () => {
   align-items: flex-end;
   flex-wrap: wrap;
   gap: 1.5rem;
+}
+
+.header-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.sede-filter-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.filter-box {
+  position: relative;
+  width: 220px;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.sede-select {
+  width: 100%;
+  padding: 0.6rem 1rem 0.6rem 2.25rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--border-2);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-weight: 600;
+  cursor: pointer;
+  appearance: none;
+  font-size: 0.9rem;
 }
 
 .header-info {

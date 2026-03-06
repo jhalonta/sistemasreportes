@@ -64,13 +64,12 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   
-  // Wait for auth to initialize if loading
-  let user = authStore.user
+  // Wait for auth to fully initialize (including profile fetch)
   if (authStore.loading) {
-    user = await authService.getCurrentUser()
+    await authStore.initialized
   }
 
-  const isAuthenticated = !!user
+  const isAuthenticated = !!authStore.user && !!authStore.userProfile
 
   if (!to.meta.public && !isAuthenticated) {
     next({ name: 'login' })

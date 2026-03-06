@@ -27,6 +27,7 @@ const authStore = useAuthStore();
 const showModal = ref(false);
 const selectedVehicle = ref(null);
 const searchQuery = ref('');
+const selectedSede = ref(''); // Admin filter
 const vehicleToDelete = ref(null);
 
 onMounted(async () => {
@@ -42,8 +43,10 @@ const filteredVehicles = computed(() => {
   
   return vehicleStore.vehicles.filter(v => {
     // 1. Role-based filter
-    if (profile?.role === 'sede' && v.sedeId !== profile.locationId) {
-      return false;
+    if (profile?.role === 'sede') {
+      if (v.sedeId !== profile.locationId) return false;
+    } else if (profile?.role === 'admin' && selectedSede.value) {
+      if (v.sedeId !== selectedSede.value) return false;
     }
     
     // 2. Search query filter
@@ -123,6 +126,19 @@ const getStateIcon = (state) => {
           type="text" 
           placeholder="Buscar vehículo por placa, tipo o sede..."
         />
+      </div>
+
+      <!-- Sede Filter for Admin -->
+      <div v-if="authStore.userProfile?.role === 'admin'" class="sede-filter-wrap">
+        <div class="filter-box">
+          <Building2 :size="18" class="filter-icon" />
+          <select v-model="selectedSede" class="sede-select">
+            <option value="">Todas las Sedes</option>
+            <option v-for="l in locationStore.locations" :key="l.id" :value="l.id">
+              {{ l.nombre }}
+            </option>
+          </select>
+        </div>
       </div>
       <div class="stats-summary">
         <div class="stat-item">
@@ -282,7 +298,41 @@ const getStateIcon = (state) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
+}
+
+.sede-filter-wrap {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.filter-box {
+  position: relative;
+  width: 100%;
+  max-width: 250px;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.sede-select {
+  width: 100%;
+  padding: 0.65rem 1rem 0.65rem 2.5rem;
+  border-radius: 12px;
+  border: 1.5px solid var(--border-2);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-weight: 600;
+  cursor: pointer;
+  appearance: none;
+  font-size: 0.95rem;
 }
 
 .search-wrap {

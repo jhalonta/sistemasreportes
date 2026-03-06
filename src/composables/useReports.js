@@ -12,11 +12,24 @@ export function useReports() {
     const attendanceStore = useAttendanceStore();
     const techStore = useTechnicianStore();
 
-    const generateDailyReport = (dateString) => {
+    const generateDailyReport = (dateString, locationId = null) => {
         const dayRecords = attendanceStore.monthlyRecords[dateString] || {};
-        const dayActivities = activityStore.activities.filter(a => a.timestamp.startsWith(dateString));
+        let dayActivities = activityStore.activities.filter(a => a.timestamp.startsWith(dateString));
 
-        const rows = techStore.sortedTechnicians.map((person, index) => {
+        // Filter activities by Sede if requested
+        if (locationId) {
+            dayActivities = dayActivities.filter(a => {
+                const tech = techStore.technicians.find(t => t.id === a.mainTechId);
+                return tech && tech.locationId === locationId;
+            });
+        }
+
+        let techsToReport = techStore.sortedTechnicians;
+        if (locationId) {
+            techsToReport = techsToReport.filter(t => t.locationId === locationId);
+        }
+
+        const rows = techsToReport.map((person, index) => {
             const attendance = dayRecords[person.id];
             const personActivities = dayActivities.filter(a =>
                 a.mainTechId === person.id || a.partnerTechId === person.id
@@ -285,7 +298,7 @@ export function useReports() {
         doc.save(filename);
     };
 
-    const downloadMonthlyAttendancePdf = async (yearMonth) => {
+    const downloadMonthlyAttendancePdf = async (yearMonth, locationId = null) => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
         const [year, month] = yearMonth.split('-');
         const dateObj = new Date(year, month - 1);
@@ -296,7 +309,10 @@ export function useReports() {
         const daysInMonth = new Date(year, month, 0).getDate();
         const dayColumns = Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString());
 
-        const technicians = techStore.sortedTechnicians.filter(t => t.active);
+        let technicians = techStore.sortedTechnicians.filter(t => t.active);
+        if (locationId) {
+            technicians = technicians.filter(t => t.locationId === locationId);
+        }
         
         const tableBody = technicians.map((tech, index) => {
             const row = [index + 1, tech.fullName, tech.role || '-'];
@@ -404,7 +420,7 @@ export function useReports() {
         doc.save(`Reporte_Asistencia_Mensual_${yearMonth}.pdf`);
     };
 
-    const generateMonthlyDailyReports = (yearMonth) => {
+    const generateMonthlyDailyReports = (yearMonth, locationId = null) => {
         if (!yearMonth) return [];
         
         const datesSet = new Set();
@@ -412,7 +428,7 @@ export function useReports() {
             if (date.startsWith(yearMonth)) datesSet.add(date);
         });
         
-        activities.value.forEach(act => {
+        activityStore.activities.forEach(act => {
             const date = act.timestamp.split('T')[0];
             if (date.startsWith(yearMonth)) datesSet.add(date);
         });
@@ -421,7 +437,7 @@ export function useReports() {
         
         return sortedDates.map(date => ({
             date: date,
-            data: generateDailyReport(date)
+            data: generateDailyReport(date, locationId)
         }));
     };
 
@@ -497,7 +513,7 @@ export function useReports() {
                 endDate = range.end;
             }
 
-            const rangeActivities = activities.value.filter(a => {
+            const rangeActivities = activityStore.activities.filter(a => {
                 const aDate = new Date(a.timestamp);
                 return aDate >= startDate && aDate <= endDate;
             });

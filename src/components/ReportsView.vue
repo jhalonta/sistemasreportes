@@ -1,11 +1,13 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Table, CalendarDays, Calendar, FileText, FileDown, Download, Sheet, BarChart3, Search } from 'lucide-vue-next';
+import { Table, CalendarDays, Calendar, FileText, FileDown, Download, Sheet, BarChart3, Search, Building2 } from 'lucide-vue-next';
 import { useReports } from '../composables/useReports';
 import { useGlobalStore } from '../stores/global';
 import { useAttendanceStore } from '../features/attendance/store/attendanceStore';
 import { useTechnicianStore } from '../features/technicians/store/technicianStore';
 import { useActivityStore } from '../features/activities/store/activityStore';
+import { useAuthStore } from '../features/auth/store/authStore';
+import { useLocationStore } from '../features/locations/store/locationStore';
 import { storeToRefs } from 'pinia';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -36,6 +38,10 @@ const { selectedDate } = storeToRefs(globalStore);
 const attendanceStore = useAttendanceStore();
 const techStore = useTechnicianStore();
 const activityStore = useActivityStore();
+const authStore = useAuthStore();
+const locationStore = useLocationStore();
+
+const selectedSede = ref(''); // Admin filter
 
 import { onMounted, watch } from 'vue';
 
@@ -43,7 +49,8 @@ onMounted(async () => {
   await Promise.all([
     techStore.fetchTechnicians(),
     attendanceStore.fetchMonthlyAttendance(),
-    activityStore.fetchActivities()
+    activityStore.fetchActivities(),
+    locationStore.fetchLocations()
   ]);
 });
 
@@ -59,7 +66,8 @@ const isGeneratingPdf = ref(false);
 
 const reportData = computed(() => {
   if (techStore.technicians.length === 0) return [];
-  return generateDailyReport(selectedDate.value);
+  const locationFilter = authStore.userProfile?.role === 'admin' ? selectedSede.value : authStore.userProfile?.locationId;
+  return generateDailyReport(selectedDate.value, locationFilter);
 });
 
 const formattedDateHeader = computed(() => {
@@ -83,10 +91,23 @@ const formatHeaderDate = (dateString) => {
 
 const chartData = computed(() => {
   // Filter activities for the selected date
-  // We use the raw activities store instead of reportData to avoid per-person duplication
   if (!selectedDate.value) return { labels: [], datasets: [] };
   
-  const dayActivities = activityStore.activities.filter(a => a.timestamp.startsWith(selectedDate.value));
+  const profile = authStore.userProfile;
+  let dayActivities = activityStore.activities.filter(a => a.timestamp.startsWith(selectedDate.value));
+  
+  // Apply Sede Filtering
+  if (profile?.role === 'sede') {
+      dayActivities = dayActivities.filter(a => {
+          const tech = techStore.technicians.find(t => t.id === a.mainTechId);
+          return tech && tech.locationId === profile.locationId;
+      });
+  } else if (profile?.role === 'admin' && selectedSede.value) {
+      dayActivities = dayActivities.filter(a => {
+          const tech = techStore.technicians.find(t => t.id === a.mainTechId);
+          return tech && tech.locationId === selectedSede.value;
+      });
+  }
   
   // Group activities by "Squad" (Main Tech + Partner)
   const squads = {};
@@ -180,27 +201,40 @@ const chartOptions = {
 const printDailyReport = () => {
     if (!selectedDate.value) return;
     isGeneratingPdf.value = true;
-    const rows = generateDailyReport(selectedDate.value);
-    downloadDailyReportPdf([{ date: selectedDate.value, rows }], `Reporte_Diario_${selectedDate.value}.pdf`);
-    isGeneratingPdf.value = false;
+    try {
+        const locationFilter = authStore.userProfile?.role === 'admin' ? selectedSede.value : authStore.userProfile?.locationId;
+        const rows = generateDailyReport(selectedDate.value, locationFilter);
+        downloadDailyReportPdf([{ date: selectedDate.value, rows }], `Reporte_Diario_${selectedDate.value}.pdf`);
+    } catch (e) {
+        console.error("Error generating daily report:", e);
+        alert('Error al generar el reporte diario. Consulte la consola para más detalles.');
+    } finally {
+        isGeneratingPdf.value = false;
+    }
 };
 
 const printMonthlyReports = () => {
     if (!selectedDate.value) return;
     isGeneratingPdf.value = true;
-    const yearMonth = selectedDate.value.substring(0, 7);
-    const monthlyReports = generateMonthlyDailyReports(yearMonth);
+    try {
+        const yearMonth = selectedDate.value.substring(0, 7);
+        const locationFilter = authStore.userProfile?.role === 'admin' ? selectedSede.value : authStore.userProfile?.locationId;
+        const monthlyReports = generateMonthlyDailyReports(yearMonth, locationFilter);
 
-    if (monthlyReports.length === 0) {
-        alert('No hay datos registrados para este mes.');
+        if (monthlyReports.length === 0) {
+            alert('No hay datos registrados para este mes.');
+            return;
+        }
+
+        const dayReports = monthlyReports.map(r => ({ date: r.date, rows: r.data }));
+        const [year, month] = selectedDate.value.split('-');
+        downloadDailyReportPdf(dayReports, `Reporte_Mensual_${year}_${month}.pdf`);
+    } catch (e) {
+        console.error("Error generating monthly report:", e);
+        alert('Error al generar el reporte mensual. Consulte la consola para más detalles.');
+    } finally {
         isGeneratingPdf.value = false;
-        return;
     }
-
-    const dayReports = monthlyReports.map(r => ({ date: r.date, rows: r.data }));
-    const [year, month] = selectedDate.value.split('-');
-    downloadDailyReportPdf(dayReports, `Reporte_Mensual_${year}_${month}.pdf`);
-    isGeneratingPdf.value = false;
 };
 
 const printAttendanceGrid = async () => {
@@ -209,10 +243,12 @@ const printAttendanceGrid = async () => {
     const yearMonth = selectedDate.value.substring(0, 7);
     
     try {
+        const locationFilter = authStore.userProfile?.role === 'admin' ? selectedSede.value : authStore.userProfile?.locationId;
         await attendanceStore.fetchMonthlyAttendance(yearMonth);
-        await downloadMonthlyAttendancePdf(yearMonth);
+        await downloadMonthlyAttendancePdf(yearMonth, locationFilter);
     } catch (e) {
         console.error(e);
+        alert('Error al generar la planilla mensual.');
     } finally {
         isGeneratingPdf.value = false;
     }
@@ -233,7 +269,22 @@ const printAttendanceGrid = async () => {
       </div>
       <div class="date-picker-wrap">
         <label>Fecha del Reporte</label>
-        <input type="date" v-model="selectedDate" class="date-input" />
+        <div class="header-controls">
+          <input type="date" v-model="selectedDate" class="date-input" />
+          
+          <!-- Sede Filter for Admin -->
+          <div v-if="authStore.userProfile?.role === 'admin'" class="sede-filter-wrap">
+            <div class="filter-box">
+              <Building2 :size="18" class="filter-icon" />
+              <select v-model="selectedSede" class="sede-select">
+                <option value="">Todas las Sedes</option>
+                <option v-for="l in locationStore.locations" :key="l.id" :value="l.id">
+                  {{ l.nombre }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -365,6 +416,44 @@ const printAttendanceGrid = async () => {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted, #64748b);
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.sede-filter-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.filter-box {
+  position: relative;
+  width: 220px;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.sede-select {
+  width: 100%;
+  padding: 0.6rem 1rem 0.6rem 2.25rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--border-2);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-weight: 600;
+  cursor: pointer;
+  appearance: none;
+  font-size: 0.9rem;
 }
 
 .date-input {

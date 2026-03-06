@@ -12,20 +12,24 @@ import {
   XCircle,
   HelpCircle,
   MoreVertical,
-  Stethoscope
+  Stethoscope,
+  Building2
 } from 'lucide-vue-next';
 import { useAttendanceStore } from '../store/attendanceStore';
 import { useTechnicianStore } from '../../technicians/store/technicianStore';
 import { useAuthStore } from '../../auth/store/authStore';
+import { useLocationStore } from '../../locations/store/locationStore';
 import { useReports } from '@/composables/useReports';
 import BaseModal from '@/components/BaseModal.vue';
 
 const attendanceStore = useAttendanceStore();
 const techStore = useTechnicianStore();
 const authStore = useAuthStore();
+const locationStore = useLocationStore();
 const { downloadMonthlyAttendancePdf } = useReports();
 
 const searchQuery = ref('');
+const selectedSede = ref(''); // Filter for admins
 const showNotesModal = ref(false);
 const selectedTechForNotes = ref(null);
 const pendingStatus = ref(null);
@@ -56,8 +60,11 @@ const handleConfirmAction = async () => {
 };
 
 onMounted(async () => {
-  await techStore.fetchTechnicians();
-  await attendanceStore.fetchAttendance();
+  await Promise.all([
+    techStore.fetchTechnicians(),
+    attendanceStore.fetchAttendance(),
+    locationStore.fetchLocations()
+  ]);
 });
 
 // Watch for date changes to refetch attendance
@@ -73,9 +80,13 @@ const filteredTechnicians = computed(() => {
     // 1. Must be active
     if (!t.active) return false;
     
-    // 2. Role-based filter (Sede only sees their own)
-    if (profile?.role === 'sede' && t.locationId !== profile.locationId) {
-      return false;
+    // 2. Role-based filter
+    if (profile?.role === 'sede') {
+      // Sede only sees their own
+      if (t.locationId !== profile.locationId) return false;
+    } else if (profile?.role === 'admin' && selectedSede.value) {
+      // Admin filter by sede if selected
+      if (t.locationId !== selectedSede.value) return false;
     }
     
     // 3. Search query filter
@@ -195,6 +206,20 @@ const printReport = async () => {
         <Search :size="18" class="search-icon" />
         <input v-model="searchQuery" type="text" placeholder="Buscar técnico..." />
       </div>
+
+      <!-- Sede Filter for Admin -->
+      <div v-if="authStore.userProfile?.role === 'admin'" class="sede-filter-wrap">
+        <div class="filter-box">
+          <Building2 :size="18" class="filter-icon" />
+          <select v-model="selectedSede" class="sede-select">
+            <option value="">Todas las Sedes</option>
+            <option v-for="l in locationStore.locations" :key="l.id" :value="l.id">
+              {{ l.nombre }}
+            </option>
+          </select>
+        </div>
+      </div>
+
       <div class="stats-summary">
         <div class="stat-item">
           <span class="stat-label">Total:</span>
@@ -445,6 +470,39 @@ const printReport = async () => {
   border: 1.5px solid var(--border-2);
   background: var(--bg-input);
   color: var(--text-main);
+}
+
+.sede-filter-wrap {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.filter-box {
+  position: relative;
+  width: 100%;
+  max-width: 250px;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.sede-select {
+  width: 100%;
+  padding: 0.6rem 1rem 0.6rem 2.25rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-2);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-weight: 600;
+  cursor: pointer;
+  appearance: none;
 }
 
 .stats-summary {

@@ -13,6 +13,7 @@ const authStore = useAuthStore();
 const showModal = ref(false);
 const selectedTech = ref(null);
 const searchQuery = ref('');
+const selectedSede = ref(''); // Admin filter
 
 onMounted(() => {
   techStore.fetchTechnicians();
@@ -63,8 +64,10 @@ watchEffect(() => {
   
   filteredTechnicians.value = techStore.technicians.filter(t => {
     // Filter by role/sede access
-    if (profile?.role === 'sede' && t.locationId !== profile.locationId) {
-      return false;
+    if (profile?.role === 'sede') {
+      if (t.locationId !== profile.locationId) return false;
+    } else if (profile?.role === 'admin' && selectedSede.value) {
+      if (t.locationId !== selectedSede.value) return false;
     }
     
     const locName = locationStore.locations.find(l => l.id === t.locationId)?.nombre || '';
@@ -100,6 +103,19 @@ const getLocationName = (locationId) => {
       <div class="search-wrap">
         <Search :size="20" class="search-icon" />
         <input v-model="searchQuery" type="text" placeholder="Buscar por nombre, teléfono o email..." />
+      </div>
+
+      <!-- Sede Filter for Admin -->
+      <div v-if="authStore.userProfile?.role === 'admin'" class="sede-filter-wrap">
+        <div class="filter-box">
+          <Building2 :size="18" class="filter-icon" />
+          <select v-model="selectedSede" class="sede-select">
+            <option value="">Todas las Sedes</option>
+            <option v-for="l in locationStore.locations" :key="l.id" :value="l.id">
+              {{ l.nombre }}
+            </option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -247,6 +263,44 @@ const getLocationName = (locationId) => {
 
 .view-controls {
   padding: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.sede-filter-wrap {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.filter-box {
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.sede-select {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--border-2);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-weight: 600;
+  cursor: pointer;
+  appearance: none;
+  font-size: 0.95rem;
 }
 
 .search-wrap {
