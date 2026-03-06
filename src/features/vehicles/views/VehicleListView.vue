@@ -221,7 +221,7 @@ const getStateIcon = (state) => {
     <VehicleModal 
       :show="showModal" 
       :vehicle="selectedVehicle" 
-      @close="showModal = false"
+      @close="showModal = false; selectedVehicle = null"
       @save="handleSave"
     />
 

@@ -18,14 +18,15 @@ export const vehicleService = {
     const q = query(collection(firestore, COLLECTION_NAME));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+      ...doc.data(),
+      id: doc.id
     }));
   },
 
   async addVehicle(vehicleData) {
+    const { id, ...data } = vehicleData;
     const docRef = await addDoc(collection(firestore, COLLECTION_NAME), {
-      ...vehicleData,
+      ...data,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
@@ -33,9 +34,10 @@ export const vehicleService = {
   },
 
   async updateVehicle(id, updates) {
+    const { id: _, ...data } = updates;
     const docRef = doc(firestore, COLLECTION_NAME, id);
     await updateDoc(docRef, {
-      ...updates,
+      ...data,
       updatedAt: serverTimestamp()
     });
   },
@@ -49,8 +51,8 @@ export const vehicleService = {
     const q = query(collection(firestore, COLLECTION_NAME), where('sedeId', '==', sedeId));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+      ...doc.data(),
+      id: doc.id
     }));
   }
 };
