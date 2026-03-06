@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { Save, Truck, Tag, X, Building2, Eye, Info } from 'lucide-vue-next';
 import BaseModal from '../../../components/BaseModal.vue';
 import { useLocationStore } from '../../locations/store/locationStore';
@@ -20,7 +20,7 @@ const emit = defineEmits(['close', 'save']);
 const userProfile = computed(() => authStore.userProfile);
 const isSedeRole = computed(() => userProfile.value?.role === 'sede');
 
-const form = reactive({
+const form = ref({
   tipo: 'motokar',
   placa: '',
   estado: 'disponible',
@@ -50,23 +50,23 @@ onMounted(() => {
 watch(() => props.show, (newVal) => {
   if (newVal) {
     if (props.vehicle) {
-      Object.assign(form, { ...props.vehicle });
+      form.value = { ...props.vehicle };
     } else {
-      Object.assign(form, {
+      form.value = {
         tipo: 'motokar',
         placa: '',
         estado: 'disponible',
         sedeId: isSedeRole.value ? userProfile.value.locationId : ''
-      });
+      };
     }
   }
 });
 
 const handleSubmit = () => {
-  if (!form.placa || !form.sedeId) {
+  if (!form.value.placa || !form.value.sedeId) {
     return;
   }
-  emit('save', { ...form });
+  emit('save', { ...form.value });
 };
 </script>
 
@@ -144,7 +144,10 @@ const handleSubmit = () => {
     </div>
 
     <template #footer>
-      <button type="button" class="btn-secondary" @click="emit('close')">Cancelar</button>
+      <button type="button" class="btn-secondary" @click="emit('close')">
+        <X :size="20" />
+        Cancelar
+      </button>
       <button type="button" class="btn-primary" @click="handleSubmit">
         <Save :size="20" />
         {{ vehicle ? 'Guardar Cambios' : 'Registrar Vehículo' }}

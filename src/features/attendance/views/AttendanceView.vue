@@ -13,7 +13,8 @@ import {
   HelpCircle,
   MoreVertical,
   Stethoscope,
-  Building2
+  Building2,
+  X
 } from 'lucide-vue-next';
 import { useAttendanceStore } from '../store/attendanceStore';
 import { useTechnicianStore } from '../../technicians/store/technicianStore';
@@ -336,7 +337,10 @@ const printReport = async () => {
         ></textarea>
       </div>
       <template #footer>
-        <button class="btn-secondary" @click="showNotesModal = false">Cancelar</button>
+        <button class="btn-secondary" @click="showNotesModal = false">
+          <X :size="20" />
+          Cancelar
+        </button>
         <button class="btn-primary" @click="saveWithNotes">
           <CircleCheck :size="18" /> Guardar Estado
         </button>
@@ -363,7 +367,10 @@ const printReport = async () => {
       </div>
 
       <template #footer>
-        <button type="button" class="btn-secondary" @click="showConfirmModal = false">Cancelar</button>
+        <button type="button" class="btn-secondary" @click="showConfirmModal = false">
+          <X :size="20" />
+          Cancelar
+        </button>
         <button 
           type="button" 
           :class="confirmType === 'danger' ? 'btn-danger' : 'btn-primary'" 
@@ -704,18 +711,6 @@ const printReport = async () => {
   font-weight: 800;
 }
 
-.btn-danger {
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
-}
 
 .loading-state, .empty-state {
   display: flex;

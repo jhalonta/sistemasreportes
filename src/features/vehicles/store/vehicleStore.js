@@ -26,8 +26,8 @@ export const useVehicleStore = defineStore('vehicles', {
       try {
         const id = await vehicleService.addVehicle(vehicleData);
         this.vehicles.push({
-          id,
           ...vehicleData,
+          id,
           createdAt: new Date(),
           updatedAt: new Date()
         });

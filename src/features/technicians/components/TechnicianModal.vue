@@ -150,7 +150,10 @@ const handleSubmit = () => {
     </form>
 
     <template #footer>
-      <button type="button" class="btn-secondary" @click="emit('close')">Cancelar</button>
+      <button type="button" class="btn-secondary" @click="emit('close')">
+        <X :size="20" />
+        Cancelar
+      </button>
       <button type="button" class="btn-primary" :disabled="loading" @click="handleSubmit">
         <Save :size="20" />
         {{ loading ? 'Guardando...' : (technician ? 'Guardar Cambios' : 'Guardar Personal') }}
@@ -270,27 +273,6 @@ const handleSubmit = () => {
   margin-top: 1rem;
 }
 
-.btn-secondary {
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  background: var(--border-2, #e2e8f0);
-  color: var(--text-main);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-primary {
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
-  color: white;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
-}
 
 .input-with-icon {
   position: relative;

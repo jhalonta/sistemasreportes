@@ -442,9 +442,6 @@ const getStateIcon = (state) => {
 .btn-icon-action.delete:hover { background: #fef2f2; border-color: #ef4444; }
 
 .highlight { font-weight: 800; color: #1e293b; }
-.btn-danger {
-  padding: 0.7rem 1.5rem; background: #ef4444; color: white; border-radius: 10px; font-weight: 700; cursor: pointer;
-}
 
 .loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem; gap: 1rem; }
 .spinner { width: 40px; height: 40px; border: 4px solid var(--border-2); border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; }

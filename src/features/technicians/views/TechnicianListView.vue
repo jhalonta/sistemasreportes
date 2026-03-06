@@ -471,42 +471,4 @@ const getLocationName = (locationId) => {
 }
 
 @keyframes rotate { to { transform: rotate(360deg); } }
-.btn-danger {
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  background: #ef4444;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.2s;
-}
-
-.btn-danger:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
-}
-
-.delete-confirm {
-  padding: 0.5rem 0;
-  color: var(--text-main);
-  line-height: 1.6;
-}
-
-.delete-confirm strong {
-  color: #ef4444;
-}
-
-.btn-secondary {
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  background: var(--border-2, #e2e8f0);
-  color: var(--text-main);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-secondary:hover {
-  background: var(--border, #cbd5e1);
-}
 </style>
