@@ -9,7 +9,7 @@ import {
   Plus, 
   Pencil, 
   Trash2, 
-  Truck, 
+  Bike, 
   Tag, 
   Search, 
   AlertTriangle, 
@@ -96,7 +96,7 @@ const getStateIcon = (state) => {
   switch (state) {
     case 'disponible': return { icon: CircleCheck, class: 'state-available', label: 'Disponible' };
     case 'mantenimiento': return { icon: Wrench, class: 'state-maintenance', label: 'Mantenimiento' };
-    case 'asignado': return { icon: Truck, class: 'state-assigned', label: 'Asignado' };
+    case 'asignado': return { icon: Bike, class: 'state-assigned', label: 'Asignado' };
     case 'inactivo': return { icon: XCircle, class: 'state-inactive', label: 'Inactivo' };
     default: return { icon: HelpCircle, class: 'state-unknown', label: 'Desconocido' };
   }
@@ -107,7 +107,7 @@ const getStateIcon = (state) => {
   <div class="vehicle-view">
     <div class="view-header">
       <div class="header-info">
-        <h2 class="title"><Truck :size="28" class="title-icon" /> Gestión de Vehículos</h2>
+        <h2 class="title"><Bike :size="28" class="title-icon" /> Gestión de Vehículos</h2>
         <p class="subtitle">
           {{ authStore.userProfile?.role === 'sede' ? 'Control de unidades de transporte de tu sede.' : 'Administra la flota de vehículos corporativos.' }}
         </p>
@@ -179,7 +179,7 @@ const getStateIcon = (state) => {
             <td>
               <div class="unit-info">
                 <div class="unit-type-icon" :class="getStateIcon(v.estado).class">
-                  <Truck :size="20" />
+                  <Bike :size="20" />
                 </div>
                 <div class="unit-details">
                   <span class="unit-name">{{ v.tipo }}</span>

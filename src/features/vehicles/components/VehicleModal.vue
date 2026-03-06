@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import { Save, Truck, Tag, X, Building2, Eye, Info } from 'lucide-vue-next';
+import { Save, Bike, Tag, X, Building2, Eye, Info } from 'lucide-vue-next';
 import BaseModal from '../../../components/BaseModal.vue';
 import { useLocationStore } from '../../locations/store/locationStore';
 import { useAuthStore } from '../../auth/store/authStore';
@@ -75,7 +75,7 @@ const handleSubmit = () => {
     :show="show"
     :title="vehicle ? 'Editar Vehículo' : 'Nuevo Vehículo'"
     :subtitle="'Administra las unidades de transporte de la sede.'"
-    :icon="Truck"
+    :icon="Bike"
     max-width="600px"
     @close="emit('close')"
   >
@@ -84,7 +84,7 @@ const handleSubmit = () => {
       <div class="form-group">
         <label for="tipo">Tipo de Vehículo</label>
         <div class="input-with-icon">
-          <span class="icon"><Truck :size="18" /></span>
+          <span class="icon"><Bike :size="18" /></span>
           <select id="tipo" v-model="form.tipo" class="form-control">
             <option v-for="type in vehicleTypes" :key="type.value" :value="type.value">
               {{ type.label }}

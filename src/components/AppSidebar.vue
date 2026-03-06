@@ -8,7 +8,7 @@ import {
   Lock, 
   Building2,
   CircleUser,
-  Truck
+  Bike
 } from 'lucide-vue-next';
 import { useAuthStore } from '../features/auth/store/authStore';
 import { useTechnicianStore } from '../features/technicians/store/technicianStore';
@@ -87,7 +87,7 @@ const userDisplayRole = computed(() => {
         <Users class="nav-icon" :size="20" /> <span class="nav-text">Personal</span>
       </router-link>
       <router-link v-if="['admin', 'sede'].includes(authStore.userProfile?.role)" to="/vehicles" class="nav-item" active-class="active">
-        <Truck class="nav-icon" :size="20" /> <span class="nav-text">Vehículos</span>
+        <Bike class="nav-icon" :size="20" /> <span class="nav-text">Vehículos</span>
       </router-link>
       <!-- Restricted for SEDE and TECNICO -->
       <router-link v-if="authStore.userProfile?.role === 'admin'" to="/users" class="nav-item" active-class="active">
