@@ -184,6 +184,7 @@ const userDisplayRole = computed(() => {
   border: none;
   cursor: pointer;
   text-align: left;
+  text-decoration: none;
 }
 
 .nav-item:hover {
