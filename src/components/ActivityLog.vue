@@ -754,12 +754,12 @@ const resetForm = () => {
                           </div>
                           <div class="qty-grid">
                             <div class="form-group">
-                              <label v-if="index === 0" :for="'assigned-' + index">Meta</label>
+                              <label v-if="index === 0" :for="'assigned-' + index">Asignada</label>
                               <input :id="'assigned-' + index" :name="'assigned-' + index" type="number" v-model="row.assigned" min="0" placeholder="0" />
-                              <div class="mini-calc" v-if="row.rateCode">Est: S/ {{ (getRateInfo(row.rateCode)?.price * row.assigned).toFixed(2) }}</div>
+                              <div class="mini-calc" v-if="row.rateCode">Asig: S/ {{ (getRateInfo(row.rateCode)?.price * row.assigned).toFixed(2) }}</div>
                             </div>
                             <div class="form-group">
-                              <label v-if="index === 0" :for="'completed-' + index">Avance</label>
+                              <label v-if="index === 0" :for="'completed-' + index">Realizada</label>
                               <input :id="'completed-' + index" :name="'completed-' + index" type="number" v-model="row.completed" min="0" placeholder="0" />
                               <div class="mini-calc highlight" v-if="row.rateCode">Real: S/ {{ (getRateInfo(row.rateCode)?.price * row.completed).toFixed(2) }}</div>
                             </div>
@@ -849,8 +849,10 @@ const resetForm = () => {
                     </div>
                     <p v-if="activity.observations" class="observations-text"><em>Obs: {{ activity.observations }}</em></p>
                     <div class="stats-mini">
-                      <span class="stat-pill">Meta: <strong>{{ activity.assigned }}</strong> <small class="text-muted">S/ {{ activity.projectedValue || '0.00' }}</small></span>
-                      <span class="stat-pill real">Real: <strong>{{ activity.completed }}</strong> <small>S/ {{ activity.realizedValue || activity.totalValue || '0.00' }}</small></span>
+                      <span class="stat-pill">Asignada: <strong>{{ activity.assigned }}</strong> <small class="text-muted">S/ {{ activity.projectedValue || '0.00' }}</small></span>
+                      <span class="stat-pill" :class="activity.completed >= activity.assigned ? 'stat-success' : 'stat-fail'">
+                        Realizada: <strong>{{ activity.completed }}</strong> <small>S/ {{ activity.realizedValue || activity.totalValue || '0.00' }}</small>
+                      </span>
                     </div>
                   </div>
                   <div class="line-actions">
@@ -892,11 +894,11 @@ const resetForm = () => {
                     </div>
                     <div class="edit-qty-row">
                       <div class="form-group">
-                        <label :for="'edit-assigned-' + activity.id">Meta de trabajo</label>
+                        <label :for="'edit-assigned-' + activity.id">Cant. Asignada</label>
                         <input :id="'edit-assigned-' + activity.id" :name="'edit-assigned-' + activity.id" type="number" v-model="editForm.assigned" min="0">
                       </div>
                       <div class="form-group info-only">
-                        <label>Avance Real</label>
+                        <label>Cant. Realizada</label>
                         <div class="readonly-val">{{ activity.completed }}</div>
                       </div>
                     </div>
@@ -1571,9 +1573,16 @@ select:focus, input:focus {
   color: var(--text-muted);
 }
 
-.stat-pill.real {
-  background: var(--success-bg);
-  color: var(--success);
+.stat-pill.stat-success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #10b981;
+}
+
+.stat-pill.stat-fail {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
 }
 
 .text-muted { color: var(--text-muted); font-weight: normal; margin-left: 4px; }
