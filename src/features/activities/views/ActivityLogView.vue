@@ -197,10 +197,7 @@ const locationPersonnel = computed(() => {
 });
 
 const operationalPersonnel = computed(() => {
-    return locationPersonnel.value.filter(p => {
-        const attendanceRecord = attendanceStore.records[p.id];
-        return attendanceRecord?.status === 'present';
-    });
+    return locationPersonnel.value;
 });
 
 const busyTechIds = computed(() => {
