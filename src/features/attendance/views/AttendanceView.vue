@@ -13,6 +13,7 @@ import { useReports } from '@/composables/useReports';
 import { useLocationStore } from '../../locations/store/locationStore';
 import AttendanceNotesModal from '../components/AttendanceNotesModal.vue';
 import AttendanceConfirmModal from '../components/AttendanceConfirmModal.vue';
+import AttendanceEditModal from '../components/AttendanceEditModal.vue';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -78,6 +79,47 @@ const selectedTechForNotes = ref(null);
 const pendingStatus = ref(null);
 const notesText = ref('');
 const selectedLocationId = ref('all');
+
+const showEditModal = ref(false);
+const selectedTechForEdit = ref(null);
+
+const openEditModal = (tech) => {
+  selectedTechForEdit.value = tech;
+  showEditModal.value = true;
+};
+
+const handleSaveEdit = async ({ status, checkInTime, checkOutTime, notes }) => {
+  if (!selectedTechForEdit.value) return;
+  const techId = selectedTechForEdit.value.id;
+  const dateStr = attendanceStore.selectedDate;
+
+  let checkInDate = null;
+  let checkOutDate = null;
+
+  if (checkInTime) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const [hours, minutes] = checkInTime.split(':').map(Number);
+    checkInDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  }
+
+  if (checkOutTime) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const [hours, minutes] = checkOutTime.split(':').map(Number);
+    checkOutDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  }
+
+  try {
+    await attendanceStore.saveManualAttendance(techId, dateStr, status, {
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      notes
+    });
+    showEditModal.value = false;
+    selectedTechForEdit.value = null;
+  } catch (err) {
+    console.error('Error saving manual attendance:', err);
+  }
+};
 
 const showConfirmModal = ref(false);
 const confirmTitle = ref('');
@@ -338,6 +380,7 @@ const printReport = async () => {
                 <TableHead class="text-[10px] font-bold uppercase tracking-widest text-center">Cargo / Función</TableHead>
                 <TableHead class="text-[10px] font-bold uppercase tracking-widest text-center">Estado</TableHead>
                 <TableHead class="text-[10px] font-bold uppercase tracking-widest text-center">Hora Ingreso</TableHead>
+                <TableHead class="text-[10px] font-bold uppercase tracking-widest text-center">Hora Salida</TableHead>
                 <TableHead class="text-[10px] font-bold uppercase tracking-widest text-right pr-4">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -384,6 +427,11 @@ const printReport = async () => {
                   {{ formatTime(attendanceStore.records[t.id]?.checkIn) }}
                 </TableCell>
 
+                <!-- Check-out time -->
+                <TableCell class="text-center py-3 font-mono text-xs font-bold text-muted-foreground">
+                  {{ formatTime(attendanceStore.records[t.id]?.checkOut) }}
+                </TableCell>
+
                 <!-- Actions -->
                 <TableCell class="text-right pr-4 py-3">
                   <div class="flex justify-end">
@@ -397,6 +445,12 @@ const printReport = async () => {
                         <DropdownMenuLabel class="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">
                           Opciones de Asistencia
                         </DropdownMenuLabel>
+                        <!-- Edit Attendance / Hours -->
+                        <DropdownMenuItem @click="openEditModal(t)" class="text-primary font-bold">
+                          <Clock class="mr-2 h-4 w-4" />
+                          <span>Editar Horario</span>
+                        </DropdownMenuItem>
+
                         <DropdownMenuSeparator />
 
                         <!-- Toggle Presence / Mark Present -->
@@ -448,6 +502,16 @@ const printReport = async () => {
       <AttendanceConfirmModal :show="showConfirmModal" :title="confirmTitle" :message="confirmMessage"
         :name="confirmName" :type="confirmType" :loading="attendanceStore.loading" @close="showConfirmModal = false"
         @confirm="handleConfirmAction" />
+
+      <AttendanceEditModal
+        :show="showEditModal"
+        :technician="selectedTechForEdit"
+        :record="selectedTechForEdit ? attendanceStore.records[selectedTechForEdit.id] : null"
+        :selected-date="attendanceStore.selectedDate"
+        :loading="attendanceStore.loading"
+        @close="showEditModal = false; selectedTechForEdit = null"
+        @save="handleSaveEdit"
+      />
     </div>
   </TooltipProvider>
 </template>

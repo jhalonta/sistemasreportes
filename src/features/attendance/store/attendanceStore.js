@@ -126,6 +126,142 @@ export const useAttendanceStore = defineStore('attendance', {
       }
     },
 
+    async saveManualAttendance(technicianId, date, status, { checkIn, checkOut, notes } = {}) {
+      this.loading = true;
+      try {
+        const recordsForDate = await attendanceService.getAttendanceByDate(date);
+        const existingRecord = recordsForDate[technicianId];
+
+        const data = {
+          id: existingRecord?.id,
+          technicianId,
+          date,
+          status,
+          notes: notes !== undefined ? notes : (existingRecord?.notes || '')
+        };
+
+        if (checkIn !== undefined) {
+          data.checkIn = checkIn;
+        } else if (existingRecord?.checkIn) {
+          data.checkIn = existingRecord.checkIn;
+        }
+
+        if (checkOut !== undefined) {
+          data.checkOut = checkOut;
+        } else if (existingRecord?.checkOut) {
+          data.checkOut = existingRecord.checkOut;
+        }
+
+        // Default times if status is present/late but checkIn/checkOut is not set
+        if (['present', 'late', 'justified'].includes(status)) {
+          const [year, month, day] = date.split('-').map(Number);
+          const d = new Date(year, month - 1, day);
+          const dayOfWeek = d.getDay();
+
+          if (!data.checkIn) {
+            const autoCheckIn = new Date(d);
+            autoCheckIn.setHours(8, 0, 0, 0);
+            data.checkIn = autoCheckIn;
+          }
+          if (!data.checkOut && status === 'present') {
+            const autoCheckOut = new Date(d);
+            if (dayOfWeek === 6) {
+              autoCheckOut.setHours(13, 0, 0, 0);
+            } else {
+              autoCheckOut.setHours(18, 0, 0, 0);
+            }
+            data.checkOut = autoCheckOut;
+          }
+        } else {
+          // If status is absent/dm/permiso, clear check-in and check-out
+          if (status === 'absent' || status === 'dm' || status === 'permiso') {
+            data.checkIn = null;
+            data.checkOut = null;
+          }
+        }
+
+        const id = await attendanceService.saveAttendance(data);
+
+        if (date === this.selectedDate) {
+          this.records[technicianId] = {
+            ...data,
+            id
+          };
+        }
+
+        if (!this.monthlyRecords[date]) {
+          this.monthlyRecords[date] = {};
+        }
+        this.monthlyRecords[date][technicianId] = {
+          ...data,
+          id
+        };
+
+        return id;
+      } catch (err) {
+        this.error = err.message;
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async registerSelfAttendance(technicianId, type) {
+      this.loading = true;
+      try {
+        const d = new Date();
+        const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        
+        const recordsToday = await attendanceService.getAttendanceByDate(localDate);
+        const existingRecord = recordsToday[technicianId];
+
+        const data = {
+          id: existingRecord?.id,
+          technicianId,
+          date: localDate,
+          status: existingRecord?.status || 'present'
+        };
+
+        if (type === 'checkIn') {
+          if (existingRecord?.checkIn) {
+            throw new Error('Ya registraste tu entrada hoy.');
+          }
+          data.checkIn = new Date();
+          data.status = 'present';
+        } else if (type === 'checkOut') {
+          if (existingRecord?.checkOut) {
+            throw new Error('Ya registraste tu salida hoy.');
+          }
+          data.checkOut = new Date();
+          data.checkIn = existingRecord?.checkIn || new Date();
+        }
+
+        const id = await attendanceService.saveAttendance(data);
+
+        if (localDate === this.selectedDate) {
+          this.records[technicianId] = {
+            ...data,
+            id
+          };
+        }
+
+        if (!this.monthlyRecords[localDate]) {
+          this.monthlyRecords[localDate] = {};
+        }
+        this.monthlyRecords[localDate][technicianId] = {
+          ...data,
+          id
+        };
+
+        return { id, data };
+      } catch (err) {
+        this.error = err.message;
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+
     async markAllPresent() {
       const techStore = usePersonalStore();
       const techIdsToMark = techStore.technicians

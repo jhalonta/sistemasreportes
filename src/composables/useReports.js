@@ -69,9 +69,16 @@ export function useReports() {
                         formattedCheckIn = String(attendance.checkIn).substring(0, 5);
                     }
 
-                    formattedCheckOut = '18:00';
-                    const dayOfWeek = new Date(dateString + 'T00:00:00').getDay();
-                    if (dayOfWeek === 6) formattedCheckOut = '13:00';
+                    if (attendance.checkOut) {
+                        const checkOutDate = attendance.checkOut.toDate ? attendance.checkOut.toDate() : new Date(attendance.checkOut);
+                        if (!isNaN(checkOutDate)) {
+                            formattedCheckOut = checkOutDate.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+                        } else {
+                            formattedCheckOut = String(attendance.checkOut).substring(0, 5);
+                        }
+                    } else {
+                        formattedCheckOut = '';
+                    }
                 }
             }
 

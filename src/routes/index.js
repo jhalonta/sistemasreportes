@@ -10,6 +10,12 @@ const routes = [
     meta: { public: true }
   },
   {
+    path: '/marcar',
+    name: 'public-attendance',
+    component: () => import('../features/attendance/views/PublicAttendanceView.vue'),
+    meta: { public: true }
+  },
+  {
     path: '/',
     name: 'dashboard',
     component: () => import('../features/dashboard/views/DashboardView.vue')
