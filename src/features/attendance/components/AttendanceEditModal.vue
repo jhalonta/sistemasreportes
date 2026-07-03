@@ -65,7 +65,7 @@ watch(() => props.show, (newShow) => {
             status.value = 'present';
             notes.value = '';
             checkInTime.value = '08:00';
-            checkOutTime.value = isSaturday(props.selectedDate) ? '13:00' : '18:00';
+            checkOutTime.value = '';
         }
     }
 });
@@ -80,9 +80,8 @@ watch(status, (newStatus) => {
     if (['absent', 'dm', 'permiso'].includes(newStatus)) {
         checkInTime.value = '';
         checkOutTime.value = '';
-    } else if (!checkInTime.value && !checkOutTime.value) {
+    } else if (!checkInTime.value) {
         checkInTime.value = '08:00';
-        checkOutTime.value = isSaturday(props.selectedDate) ? '13:00' : '18:00';
     }
 });
 

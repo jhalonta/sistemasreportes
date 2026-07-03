@@ -211,16 +211,6 @@ export const useAttendanceStore = defineStore('attendance', {
               data.status = 'present';
             }
           }
-
-          if (!data.checkOut && data.status === 'present') {
-            const autoCheckOut = new Date(d);
-            if (dayOfWeek === 6) {
-              autoCheckOut.setHours(13, 0, 0, 0);
-            } else {
-              autoCheckOut.setHours(18, 0, 0, 0);
-            }
-            data.checkOut = autoCheckOut;
-          }
         } else {
           // If status is absent/dm/permiso, clear check-in and check-out
           if (status === 'absent' || status === 'dm' || status === 'permiso') {
