@@ -16,8 +16,9 @@ const personalStore = usePersonalStore();
 const attendanceStore = useAttendanceStore();
 
 const step = ref(1); // 1: ID, 2: Actions, 3: Success
-const selectedTechName = ref('');
+const selectedTechId = ref('');
 const dniInput = ref('');
+const dbError = ref('');
 const verifiedTech = ref(null);
 const todayRecord = ref(null);
 const loading = ref(false);
@@ -78,8 +79,19 @@ const updateClock = () => {
 
 onMounted(async () => {
   loading.value = true;
-  await personalStore.fetchTechnicians();
-  loading.value = false;
+  dbError.value = '';
+  try {
+    await personalStore.fetchTechnicians();
+    if (personalStore.error) {
+      dbError.value = personalStore.error;
+      toast.error(personalStore.error);
+    }
+  } catch (err) {
+    dbError.value = 'Error de conexión con el servidor de base de datos.';
+    toast.error(dbError.value);
+  } finally {
+    loading.value = false;
+  }
   
   updateClock();
   clockTimer = setInterval(updateClock, 1000);
@@ -91,7 +103,7 @@ onUnmounted(() => {
 });
 
 const handleVerification = async () => {
-  if (!selectedTechName.value) {
+  if (!selectedTechId.value) {
     toast.error('Por favor, selecciona tu nombre.');
     return;
   }
@@ -100,19 +112,17 @@ const handleVerification = async () => {
     return;
   }
 
-  // Find tech by name (case insensitive match)
-  const tech = activeTechnicians.value.find(
-    t => t.fullName.trim().toUpperCase() === selectedTechName.value.trim().toUpperCase()
-  );
+  // Find tech by ID directly
+  const tech = activeTechnicians.value.find(t => t.id === selectedTechId.value);
 
   if (!tech) {
-    toast.error('Nombre no encontrado en la lista de técnicos activos.');
+    toast.error('Técnico no encontrado.');
     return;
   }
 
   // Verify DNI
   if (tech.dni !== dniInput.value.trim()) {
-    toast.error('DNI incorrecto. Inténtalo de nuevo.');
+    toast.error('DNI incorrecto. Inténtelo de nuevo.');
     return;
   }
 
@@ -173,7 +183,7 @@ const startCountdown = () => {
 
 const resetFlow = () => {
   step.value = 1;
-  selectedTechName.value = '';
+  selectedTechId.value = '';
   dniInput.value = '';
   verifiedTech.value = null;
   todayRecord.value = null;
@@ -208,29 +218,34 @@ const handleBack = () => {
 
       <!-- STEP 1: Identification -->
       <div v-else-if="step === 1" class="space-y-4">
+        <!-- Database Error Banner -->
+        <div v-if="dbError" class="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold text-center leading-relaxed">
+          {{ dbError }}<br>
+          <span class="text-[10px] opacity-80">Por favor, recarga la página o contacta al administrador.</span>
+        </div>
+
         <p class="text-xs text-center text-muted-foreground">
           Selecciona tu nombre y valida tu DNI para marcar tu ingreso o salida de hoy.
         </p>
 
         <div class="space-y-3">
-          <!-- Autocomplete input using native datalist -->
+          <!-- Dropdown selection -->
           <div class="grid gap-1.5">
             <Label for="tech-select" class="font-bold text-xs uppercase tracking-wider text-muted-foreground">Tu Nombre Completo</Label>
             <div class="relative">
-              <User class="absolute left-3 top-3 text-muted-foreground" :size="16" />
-              <input
+              <User class="absolute left-3 top-3 text-muted-foreground pointer-events-none z-10" :size="16" />
+              <select
                 id="tech-select"
-                list="techs-list"
-                v-model="selectedTechName"
-                placeholder="Escribe tu nombre para buscar..."
-                class="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-bold"
-              />
+                v-model="selectedTechId"
+                class="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-8 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-bold cursor-pointer appearance-none"
+              >
+                <option value="" disabled selected>Selecciona tu nombre de la lista...</option>
+                <option v-for="t in activeTechnicians" :key="t.id" :value="t.id">
+                  {{ t.fullName }}
+                </option>
+              </select>
+              <span class="absolute right-3 top-3 text-muted-foreground pointer-events-none text-[10px]">▼</span>
             </div>
-            <datalist id="techs-list">
-              <option v-for="t in activeTechnicians" :key="t.id" :value="t.fullName">
-                {{ t.role }}
-              </option>
-            </datalist>
           </div>
 
           <!-- DNI Input -->
