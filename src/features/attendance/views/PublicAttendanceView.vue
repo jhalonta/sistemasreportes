@@ -43,19 +43,25 @@ const activeTechnicians = computed(() => {
   return personalStore.technicians.filter(t => t.active);
 });
 
-const isPastCheckoutLimit = computed(() => {
+const isCheckoutDisabled = computed(() => {
   const now = new Date();
+  const hours = now.getHours();
   const dayOfWeek = now.getDay();
   const limitHour = dayOfWeek === 6 ? 13 : 18;
-  
-  const limitDate = new Date();
-  limitDate.setHours(limitHour, 0, 0, 0);
-  return now >= limitDate;
+  return hours < 8 || hours >= limitHour;
 });
 
-const limitHourLabel = computed(() => {
-  const dayOfWeek = new Date().getDay();
-  return dayOfWeek === 6 ? '13:00' : '18:00';
+const checkoutDisabledReason = computed(() => {
+  const now = new Date();
+  const hours = now.getHours();
+  const dayOfWeek = now.getDay();
+  const limitHour = dayOfWeek === 6 ? '13:00' : '18:00';
+  
+  if (hours < 8) {
+    return 'El registro de salida estará disponible a partir de las 08:00 am.';
+  } else {
+    return `La marcación de salida cerró a las ${limitHour}. Contacte al administrador.`;
+  }
 });
 
 const isBeforeCheckInStart = computed(() => {
@@ -319,11 +325,12 @@ const handleBack = () => {
                 <span>Marcada a las {{ formatTime(todayRecord.checkOut) }}</span>
               </div>
             </template>
-            <template v-else-if="isPastCheckoutLimit">
-              <div class="flex flex-col items-center gap-1.5 bg-rose-500/10 p-2.5 rounded-lg border border-rose-500/20 max-w-[280px]">
-                <AlertCircle :size="16" class="text-rose-500 shrink-0" />
-                <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400 leading-tight">
-                  La marcación de salida cerró a las {{ limitHourLabel }}. Contacte al administrador.
+            <template v-else-if="isCheckoutDisabled">
+              <div class="flex flex-col items-center gap-1.5 p-2.5 rounded-lg border max-w-[280px]"
+                :class="new Date().getHours() < 8 ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'">
+                <AlertCircle :size="16" class="shrink-0" />
+                <span class="text-[10px] font-bold leading-tight">
+                  {{ checkoutDisabledReason }}
                 </span>
               </div>
             </template>
