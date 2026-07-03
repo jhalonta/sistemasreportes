@@ -325,6 +325,14 @@ const handleBack = () => {
                 <span>Marcada a las {{ formatTime(todayRecord.checkOut) }}</span>
               </div>
             </template>
+            <template v-else-if="!todayRecord?.checkIn">
+              <div class="flex flex-col items-center gap-1.5 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 max-w-[280px]">
+                <AlertCircle :size="16" class="text-amber-500 shrink-0" />
+                <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 leading-tight">
+                  Debe registrar su entrada primero para poder marcar la salida.
+                </span>
+              </div>
+            </template>
             <template v-else-if="isCheckoutDisabled">
               <div class="flex flex-col items-center gap-1.5 p-2.5 rounded-lg border max-w-[280px]"
                 :class="new Date().getHours() < 8 ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'">
@@ -335,7 +343,6 @@ const handleBack = () => {
               </div>
             </template>
             <template v-else>
-              <!-- Disable Salida only if they haven't checked in yet, but let them force if necessary or let them register directly -->
               <Button @click="handleMark('checkOut')" :disabled="loading" class="w-full bg-sky-600 hover:bg-sky-500 font-bold text-xs uppercase tracking-wider shadow-md">
                 Registrar Salida
               </Button>
