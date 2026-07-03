@@ -58,6 +58,12 @@ const limitHourLabel = computed(() => {
   return dayOfWeek === 6 ? '13:00' : '18:00';
 });
 
+const isBeforeCheckInStart = computed(() => {
+  const now = new Date();
+  const hours = now.getHours();
+  return hours < 7;
+});
+
 const updateClock = () => {
   const now = new Date();
   currentTime.value = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -283,6 +289,14 @@ const handleBack = () => {
               <div class="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-sm bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
                 <CheckCircle2 :size="14" />
                 <span>Marcada a las {{ formatTime(todayRecord.checkIn) }}</span>
+              </div>
+            </template>
+            <template v-else-if="isBeforeCheckInStart">
+              <div class="flex flex-col items-center gap-1.5 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 max-w-[280px]">
+                <Clock :size="16" class="text-amber-500 shrink-0" />
+                <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 leading-tight">
+                  El registro de entrada estará disponible a partir de las 07:00 am.
+                </span>
               </div>
             </template>
             <template v-else>
