@@ -234,18 +234,87 @@ export function useReports() {
 
             // ---- Table ----
             const rows = report.rows;
-            const tableBody = rows.map(row => [
-                row.item,
-                row.name,
-                row.dni || '',
-                row.role || '',
-                row.checkIn || '',
-                row.checkOut || '',
-                row.activitiesList.map(a => a.description || '').join('\n'),
-                row.activitiesList.map(a => a.assigned || '').join('\n'),
-                row.activitiesList.map(a => a.completed || '').join('\n'),
-                '' // Firma
-            ]);
+
+            // Get activities for this specific report date to extract technician pairs
+            const dayActivities = activityStore.activities.filter(a => a.timestamp && a.timestamp.startsWith(report.date));
+            const pairsSeen = new Set();
+            const pairs = [];
+            dayActivities.forEach(a => {
+                if (a.partnerTechId) {
+                    const key = `${a.mainTechId}|${a.partnerTechId}`;
+                    if (!pairsSeen.has(key)) {
+                        pairsSeen.add(key);
+                        pairs.push({ mainId: a.mainTechId, partnerId: a.partnerTechId });
+                    }
+                }
+            });
+
+            const tableBody = [];
+            const spannedRows = new Set();
+
+            for (let i = 0; i < rows.length; i++) {
+                const currentRow = rows[i];
+                
+                let rowSpanVal = 1;
+                const myPartners = pairs.filter(p => p.mainId === currentRow.personId).map(p => p.partnerId);
+                if (myPartners.length > 0) {
+                    let nextIdx = i + 1;
+                    while (nextIdx < rows.length && myPartners.includes(rows[nextIdx].personId)) {
+                        rowSpanVal++;
+                        spannedRows.add(nextIdx);
+                        nextIdx++;
+                    }
+                }
+
+                const itemCell = currentRow.item;
+                const nameCell = currentRow.name;
+                const dniCell = currentRow.dni || '';
+                const roleCell = currentRow.role || '';
+                const checkInCell = currentRow.checkIn || '';
+                const checkOutCell = currentRow.checkOut || '';
+                const firmaCell = '';
+
+                if (spannedRows.has(i)) {
+                    // Skip columns 6, 7, 8 (Código, Asignada, Realizada) because they are spanned from the main tech row above
+                    tableBody.push([
+                        itemCell,
+                        nameCell,
+                        dniCell,
+                        roleCell,
+                        checkInCell,
+                        checkOutCell,
+                        firmaCell
+                    ]);
+                } else {
+                    const codeText = currentRow.activitiesList.map(a => a.description || '').join('\n');
+                    const assignedText = currentRow.activitiesList.map(a => a.assigned || '').join('\n');
+                    const completedText = currentRow.activitiesList.map(a => a.completed || '').join('\n');
+
+                    const codeCell = rowSpanVal > 1 
+                        ? { content: codeText, rowSpan: rowSpanVal, styles: { valign: 'middle', halign: 'center' } } 
+                        : codeText;
+                    const assignedCell = rowSpanVal > 1 
+                        ? { content: assignedText, rowSpan: rowSpanVal, styles: { valign: 'middle', halign: 'center' } } 
+                        : assignedText;
+                    const completedCell = rowSpanVal > 1 
+                        ? { content: completedText, rowSpan: rowSpanVal, styles: { valign: 'middle', halign: 'center' } } 
+                        : completedText;
+
+                    tableBody.push([
+                        itemCell,
+                        nameCell,
+                        dniCell,
+                        roleCell,
+                        checkInCell,
+                        checkOutCell,
+                        codeCell,
+                        assignedCell,
+                        completedCell,
+                        firmaCell
+                    ]);
+                }
+            }
+
 
             autoTable(doc, {
                 startY: y,
