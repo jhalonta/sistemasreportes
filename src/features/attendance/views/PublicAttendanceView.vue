@@ -43,6 +43,21 @@ const activeTechnicians = computed(() => {
   return personalStore.technicians.filter(t => t.active);
 });
 
+const isPastCheckoutLimit = computed(() => {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const limitHour = dayOfWeek === 6 ? 13 : 18;
+  
+  const limitDate = new Date();
+  limitDate.setHours(limitHour, 0, 0, 0);
+  return now >= limitDate;
+});
+
+const limitHourLabel = computed(() => {
+  const dayOfWeek = new Date().getDay();
+  return dayOfWeek === 6 ? '13:00' : '18:00';
+});
+
 const updateClock = () => {
   const now = new Date();
   currentTime.value = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -288,6 +303,14 @@ const handleBack = () => {
               <div class="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-sm bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
                 <CheckCircle2 :size="14" />
                 <span>Marcada a las {{ formatTime(todayRecord.checkOut) }}</span>
+              </div>
+            </template>
+            <template v-else-if="isPastCheckoutLimit">
+              <div class="flex flex-col items-center gap-1.5 bg-rose-500/10 p-2.5 rounded-lg border border-rose-500/20 max-w-[280px]">
+                <AlertCircle :size="16" class="text-rose-500 shrink-0" />
+                <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400 leading-tight">
+                  La marcación de salida cerró a las {{ limitHourLabel }}. Contacte al administrador.
+                </span>
               </div>
             </template>
             <template v-else>

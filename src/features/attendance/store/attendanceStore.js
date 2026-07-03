@@ -226,8 +226,16 @@ export const useAttendanceStore = defineStore('attendance', {
           if (existingRecord?.checkIn) {
             throw new Error('Ya registraste tu entrada hoy.');
           }
-          data.checkIn = new Date();
-          data.status = 'present';
+          const now = new Date();
+          data.checkIn = now;
+          
+          const hours = now.getHours();
+          const minutes = now.getMinutes();
+          if (hours > 8 || (hours === 8 && minutes > 0)) {
+            data.status = 'late';
+          } else {
+            data.status = 'present';
+          }
         } else if (type === 'checkOut') {
           if (existingRecord?.checkOut) {
             throw new Error('Ya registraste tu salida hoy.');
