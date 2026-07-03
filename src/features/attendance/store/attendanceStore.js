@@ -199,7 +199,20 @@ export const useAttendanceStore = defineStore('attendance', {
             autoCheckIn.setHours(8, 0, 0, 0);
             data.checkIn = autoCheckIn;
           }
-          if (!data.checkOut && status === 'present') {
+
+          // Auto-adjust status between 'present' and 'late' if status is one of those two and we have checkIn time
+          if (status === 'present' || status === 'late') {
+            const checkInDate = data.checkIn.toDate ? data.checkIn.toDate() : new Date(data.checkIn);
+            const hours = checkInDate.getHours();
+            const minutes = checkInDate.getMinutes();
+            if (hours > 8 || (hours === 8 && minutes > 0)) {
+              data.status = 'late';
+            } else {
+              data.status = 'present';
+            }
+          }
+
+          if (!data.checkOut && data.status === 'present') {
             const autoCheckOut = new Date(d);
             if (dayOfWeek === 6) {
               autoCheckOut.setHours(13, 0, 0, 0);

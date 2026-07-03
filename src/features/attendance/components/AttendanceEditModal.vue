@@ -86,6 +86,19 @@ watch(status, (newStatus) => {
     }
 });
 
+// Auto-adjust status between present and late if the user changes checkInTime and current status is either present or late
+watch(checkInTime, (newTime) => {
+    if (!newTime) return;
+    if (status.value === 'present' || status.value === 'late') {
+        const [hours, minutes] = newTime.split(':').map(Number);
+        if (hours > 8 || (hours === 8 && minutes > 0)) {
+            status.value = 'late';
+        } else {
+            status.value = 'present';
+        }
+    }
+});
+
 const handleSave = () => {
     emit('save', {
         status: status.value,
