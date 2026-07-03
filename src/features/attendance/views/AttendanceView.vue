@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, computed, ref, watch } from 'vue';
+import { onMounted, onUnmounted, computed, ref, watch } from 'vue';
 import {
   ClipboardCheck, Printer, UserCheck, CircleCheck, CircleX,
   Clock, AlertTriangle, Search, HelpCircle, Stethoscope, CalendarIcon,
@@ -144,7 +144,14 @@ const handleConfirmAction = async () => {
 
 onMounted(async () => {
   await techStore.fetchTechnicians();
-  await attendanceStore.fetchAttendance();
+  attendanceStore.subscribeAttendance();
+});
+
+onUnmounted(() => {
+  if (attendanceStore.unsubscribe) {
+    attendanceStore.unsubscribe();
+    attendanceStore.unsubscribe = null;
+  }
 });
 
 watch(() => authStore.userProfile, async (profile) => {
@@ -157,8 +164,8 @@ watch(() => authStore.userProfile, async (profile) => {
   }
 }, { immediate: true });
 
-watch(() => attendanceStore.selectedDate, async (newDate) => {
-  await attendanceStore.fetchAttendance(newDate);
+watch(() => attendanceStore.selectedDate, (newDate) => {
+  attendanceStore.subscribeAttendance(newDate);
 });
 
 const filteredTechnicians = computed(() => {

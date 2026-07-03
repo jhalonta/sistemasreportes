@@ -8,13 +8,34 @@ import {
   doc, 
   serverTimestamp,
   setDoc,
-  deleteDoc
+  deleteDoc,
+  onSnapshot
 } from 'firebase/firestore';
 import { firestore } from '@/firebase';
 
 const COLLECTION_NAME = 'attendances';
 
 export const attendanceService = {
+  /**
+   * Subscribes to real-time attendance changes for a specific date
+   */
+  subscribeAttendanceByDate(date, onUpdate, onError) {
+    const q = query(
+      collection(firestore, COLLECTION_NAME),
+      where('date', '==', date)
+    );
+    return onSnapshot(q, (querySnapshot) => {
+      const records = {};
+      querySnapshot.forEach((doc) => {
+        records[doc.data().technicianId] = {
+          id: doc.id,
+          ...doc.data()
+        };
+      });
+      onUpdate(records);
+    }, onError);
+  },
+
   /**
    * Fetches attendance for a specific date
    * @param {string} date - ISO date string (YYYY-MM-DD)

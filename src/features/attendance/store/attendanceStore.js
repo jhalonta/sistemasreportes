@@ -12,7 +12,8 @@ export const useAttendanceStore = defineStore('attendance', {
       monthlyRecords: {}, // Keyed by date -> technicianId
       loading: false,
       error: null,
-      selectedDate: localDate
+      selectedDate: localDate,
+      unsubscribe: null
     };
   },
 
@@ -21,6 +22,41 @@ export const useAttendanceStore = defineStore('attendance', {
   },
 
   actions: {
+    subscribeAttendance(date) {
+      if (this.unsubscribe) {
+        this.unsubscribe();
+        this.unsubscribe = null;
+      }
+
+      this.loading = true;
+      this.error = null;
+
+      const dateToFetch = date || this.selectedDate;
+
+      try {
+        this.unsubscribe = attendanceService.subscribeAttendanceByDate(dateToFetch, (records) => {
+          this.records = records;
+          
+          if (!this.monthlyRecords[dateToFetch]) {
+            this.monthlyRecords[dateToFetch] = this.records;
+          } else {
+            this.monthlyRecords[dateToFetch] = {
+              ...this.monthlyRecords[dateToFetch],
+              ...records
+            };
+          }
+          this.loading = false;
+        }, (err) => {
+          this.error = err.message;
+          console.error('Error subscribing to attendance:', err);
+          this.loading = false;
+        });
+      } catch (err) {
+        this.error = err.message;
+        this.loading = false;
+      }
+    },
+
     async fetchAttendance(date) {
       this.loading = true;
       this.error = null;
