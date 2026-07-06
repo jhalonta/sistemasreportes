@@ -64,7 +64,7 @@ const isCheckoutDisabled = computed(() => {
   const now = new Date();
   const hours = now.getHours();
   const dayOfWeek = now.getDay();
-  const limitHour = dayOfWeek === 6 ? 13 : 18;
+  const limitHour = dayOfWeek === 6 ? 16 : 18;
   return hours < 8 || hours >= limitHour;
 });
 
@@ -72,7 +72,7 @@ const checkoutDisabledReason = computed(() => {
   const now = new Date();
   const hours = now.getHours();
   const dayOfWeek = now.getDay();
-  const limitHour = dayOfWeek === 6 ? '13:00' : '18:00';
+  const limitHour = dayOfWeek === 6 ? '16:00' : '18:00';
   
   if (hours < 8) {
     return 'El registro de salida estará disponible a partir de las 08:00 am.';
