@@ -219,39 +219,34 @@ const verifyLocationRestriction = async (tech) => {
   geolocationError.value = '';
   userCoordinates.value = null;
   distanceToOffice.value = null;
-  officeGeocerca.value = null;
 
-  const techLocation = locationStore.locations.find(l => l.id === tech.locationId);
-  if (techLocation && techLocation.latitud && techLocation.longitud) {
-    officeGeocerca.value = {
-      nombre: techLocation.nombre,
-      latitud: parseFloat(techLocation.latitud),
-      longitud: parseFloat(techLocation.longitud),
-      radio: techLocation.radio ? parseFloat(techLocation.radio) : 100
-    };
+  // Coordenadas fijas de la oficina central (GALCAS Moyobamba)
+  officeGeocerca.value = {
+    nombre: 'Sede Principal Moyobamba',
+    latitud: -5.946140,
+    longitud: -77.301255,
+    radio: 100 // 100 metros de tolerancia
+  };
+  
+  checkingLocation.value = true;
+  try {
+    const coords = await getGPSLocation();
+    userCoordinates.value = coords;
     
-    checkingLocation.value = true;
-    try {
-      const coords = await getGPSLocation();
-      userCoordinates.value = coords;
-      
-      const dist = calculateDistance(coords.lat, coords.lng, officeGeocerca.value.latitud, officeGeocerca.value.longitud);
-      distanceToOffice.value = dist;
-      
-      if (dist > officeGeocerca.value.radio) {
-        toast.error(`Ubicación GPS lejana a la sede. Distancia: ${dist.toFixed(0)}m.`);
-      } else {
-        toast.success(`Ubicación de geocerca verificada.`);
-      }
-    } catch (err) {
-      console.error('GPS error:', err);
-      geolocationError.value = err.message;
-      toast.error(err.message);
-    } finally {
-      checkingLocation.value = false;
+    const dist = calculateDistance(coords.lat, coords.lng, officeGeocerca.value.latitud, officeGeocerca.value.longitud);
+    distanceToOffice.value = dist;
+    
+    if (dist > officeGeocerca.value.radio) {
+      toast.error(`Ubicación GPS lejana a la sede. Distancia: ${dist.toFixed(0)}m.`);
+    } else {
+      toast.success(`Ubicación de geocerca verificada.`);
     }
-  } else {
-    officeGeocerca.value = null;
+  } catch (err) {
+    console.error('GPS error:', err);
+    geolocationError.value = err.message;
+    toast.error(err.message);
+  } finally {
+    checkingLocation.value = false;
   }
 };
 
