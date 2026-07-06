@@ -87,6 +87,12 @@ const isBeforeCheckInStart = computed(() => {
   return hours < 7;
 });
 
+const isAfterCheckInEnd = computed(() => {
+  const now = new Date();
+  const hours = now.getHours();
+  return hours >= 9;
+});
+
 const updateClock = () => {
   const now = new Date();
   currentTime.value = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -303,6 +309,15 @@ const formatTime = (timestamp) => {
 
 const handleMark = async (type) => {
   if (!verifiedTech.value) return;
+
+  // Validar límite de hora de entrada (máximo 09:00 am)
+  if (type === 'checkIn') {
+    const now = new Date();
+    if (now.getHours() >= 9) {
+      toast.error('El registro de entrada ya no está disponible (cerró a las 09:00 am).');
+      return;
+    }
+  }
 
   // 1. Validar Geocerca GPS si está configurada
   if (officeGeocerca.value) {
@@ -586,6 +601,14 @@ const handleBack = () => {
                 <Clock :size="16" class="text-amber-500 shrink-0" />
                 <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 leading-tight">
                   El registro de entrada estará disponible a partir de las 07:00 am.
+                </span>
+              </div>
+            </template>
+            <template v-else-if="isAfterCheckInEnd">
+              <div class="flex flex-col items-center gap-1.5 bg-rose-500/10 p-2.5 rounded-lg border border-rose-500/20 max-w-[280px]">
+                <AlertCircle :size="16" class="text-rose-500 shrink-0" />
+                <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400 leading-tight">
+                  El registro de entrada cerró a las 09:00 am.
                 </span>
               </div>
             </template>
