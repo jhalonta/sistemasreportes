@@ -540,7 +540,7 @@ const handleBack = () => {
                 ⚠️ Error GPS
               </span>
               <span v-else-if="officeGeocerca && distanceToOffice !== null" :class="distanceToOffice <= officeGeocerca.radio ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold'">
-                {{ distanceToOffice <= officeGeocerca.radio ? '✅ En Rango' : '❌ Fuera de Rango' }}
+                {{ distanceToOffice <= 30 ? '✅ En la Oficina' : (distanceToOffice <= officeGeocerca.radio ? '✅ En Rango' : '❌ Fuera de Rango') }}
               </span>
               <span v-else-if="!officeGeocerca" class="text-emerald-500 font-bold">
                 ✅ Sede sin restricción
@@ -554,8 +554,9 @@ const handleBack = () => {
               <div v-else-if="geolocationError" class="text-rose-500 leading-tight">
                 {{ geolocationError }}
               </div>
-              <div v-else-if="officeGeocerca && distanceToOffice !== null" class="flex justify-between">
-                <span>Distancia a sede: <strong class="text-foreground">{{ distanceToOffice.toFixed(0) }}m</strong></span>
+              <div v-else-if="officeGeocerca && distanceToOffice !== null" class="flex justify-between w-full">
+                <span v-if="distanceToOffice <= 30">📍 <strong class="text-emerald-500">Dentro de la oficina</strong></span>
+                <span v-else>Distancia a sede: <strong class="text-foreground">{{ distanceToOffice.toFixed(0) }}m</strong></span>
                 <span>Radio de tolerancia: <strong class="text-foreground">{{ officeGeocerca.radio }}m</strong></span>
               </div>
               <div v-else-if="!officeGeocerca">
