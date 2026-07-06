@@ -225,7 +225,7 @@ const verifyLocationRestriction = async (tech) => {
     nombre: 'Sede Principal Moyobamba',
     latitud: -5.946140,
     longitud: -77.301255,
-    radio: 100 // 100 metros de tolerancia
+    radio: 50 // 50 metros de tolerancia
   };
   
   checkingLocation.value = true;
