@@ -176,6 +176,36 @@ const handleSave = () => {
                         class="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-bold"
                     />
                 </div>
+
+                <!-- Foto Selfie & Geocerca GPS -->
+                <div v-if="record && (record.checkInPhoto || record.checkOutPhoto)" class="border-t pt-3 mt-1">
+                    <h4 class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5">Verificación Selfie y Geolocalización</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- Entrada -->
+                        <div v-if="record.checkInPhoto" class="flex flex-col items-center gap-1.5 p-2 rounded-lg bg-muted/40 border border-border/70 text-center">
+                            <span class="text-[9px] uppercase font-bold text-muted-foreground">Selfie Entrada</span>
+                            <div class="rounded overflow-hidden border border-border bg-background shadow-sm">
+                                <img :src="record.checkInPhoto" class="h-20 w-32 object-cover" />
+                            </div>
+                            <div v-if="record.checkInLocation" class="text-[9px] font-bold text-muted-foreground leading-tight mt-0.5">
+                                📍 {{ record.checkInLocation.distance !== undefined ? `A ${record.checkInLocation.distance.toFixed(0)}m de sede` : 'Registrado' }}
+                                <div class="text-[8px] opacity-75 font-mono mt-0.5">({{ record.checkInLocation.lat.toFixed(4) }}, {{ record.checkInLocation.lng.toFixed(4) }})</div>
+                            </div>
+                        </div>
+
+                        <!-- Salida -->
+                        <div v-if="record.checkOutPhoto" class="flex flex-col items-center gap-1.5 p-2 rounded-lg bg-muted/40 border border-border/70 text-center">
+                            <span class="text-[9px] uppercase font-bold text-muted-foreground">Selfie Salida</span>
+                            <div class="rounded overflow-hidden border border-border bg-background shadow-sm">
+                                <img :src="record.checkOutPhoto" class="h-20 w-32 object-cover" />
+                            </div>
+                            <div v-if="record.checkOutLocation" class="text-[9px] font-bold text-muted-foreground leading-tight mt-0.5">
+                                📍 {{ record.checkOutLocation.distance !== undefined ? `A ${record.checkOutLocation.distance.toFixed(0)}m de sede` : 'Registrado' }}
+                                <div class="text-[8px] opacity-75 font-mono mt-0.5">({{ record.checkOutLocation.lat.toFixed(4) }}, {{ record.checkOutLocation.lng.toFixed(4) }})</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <DialogFooter>

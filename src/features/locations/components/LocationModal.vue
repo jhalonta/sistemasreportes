@@ -35,13 +35,44 @@ const form = ref({
   ciudad: '',
   departamento: '',
   supervisor: '',
-  estado: 'activa'
+  estado: 'activa',
+  latitud: '',
+  longitud: '',
+  radio: 100
 });
+
+const detectingLocation = ref(false);
+
+const detectCurrentLocation = () => {
+  if (!navigator.geolocation) {
+    alert('La geolocalización no está soportada por su navegador.');
+    return;
+  }
+  detectingLocation.value = true;
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      form.value.latitud = position.coords.latitude.toFixed(6);
+      form.value.longitud = position.coords.longitude.toFixed(6);
+      detectingLocation.value = false;
+    },
+    (error) => {
+      console.error('Error getting geolocation:', error);
+      alert('No se pudo obtener su ubicación. Asegúrese de dar permisos de GPS.');
+      detectingLocation.value = false;
+    },
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+};
 
 watch(() => props.show, (isShowing) => {
   if (isShowing) {
     if (props.location) {
-      form.value = { ...props.location };
+      form.value = { 
+        latitud: '',
+        longitud: '',
+        radio: 100,
+        ...props.location 
+      };
     } else {
       form.value = {
         nombre: '',
@@ -50,7 +81,10 @@ watch(() => props.show, (isShowing) => {
         ciudad: '',
         departamento: '',
         supervisor: '',
-        estado: 'activa'
+        estado: 'activa',
+        latitud: '',
+        longitud: '',
+        radio: 100
       };
     }
   }
@@ -179,6 +213,62 @@ const handleSubmit = () => {
                 <SelectItem value="inactiva">Inactiva</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+        </div>
+
+        <!-- Geocerca (Latitud, Longitud, Radio) -->
+        <div class="border-t pt-4 mt-2">
+          <h3 class="text-sm font-semibold mb-3 flex items-center gap-2 text-primary">
+            <Navigation :size="16" />
+            Configuración de Geocerca (GPS)
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+            <div class="grid gap-2">
+              <Label for="latitud">Latitud</Label>
+              <Input
+                id="latitud"
+                v-model="form.latitud"
+                placeholder="Ej: -6.02345"
+                class="bg-background font-mono text-xs"
+              />
+            </div>
+            <div class="grid gap-2">
+              <Label for="longitud">Longitud</Label>
+              <Input
+                id="longitud"
+                v-model="form.longitud"
+                placeholder="Ej: -76.97123"
+                class="bg-background font-mono text-xs"
+              />
+            </div>
+            <div class="grid gap-2">
+              <Label for="radio">Radio Tolerancia (m)</Label>
+              <Input
+                id="radio"
+                type="number"
+                v-model.number="form.radio"
+                placeholder="Ej: 100"
+                min="10"
+                class="bg-background font-mono text-xs"
+              />
+            </div>
+          </div>
+          <div class="mt-3 flex justify-between items-center">
+            <p class="text-[10px] text-muted-foreground">
+              Deje latitud/longitud en blanco si no desea restringir marcación por GPS.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              class="h-7 text-[10px] gap-1 px-2.5 font-bold"
+              @click="detectCurrentLocation"
+              :disabled="detectingLocation"
+            >
+              <div v-if="detectingLocation" class="h-3 w-3 animate-spin rounded-full border border-primary border-t-transparent" />
+              <MapPin v-else :size="12" />
+              {{ detectingLocation ? 'Obteniendo GPS...' : 'Usar mi ubicación actual' }}
+            </Button>
           </div>
         </div>
       </form>

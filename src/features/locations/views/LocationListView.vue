@@ -226,6 +226,12 @@ const handleDelete = async () => {
                     <div class="text-muted-foreground/60 ml-3 py-0.5 text-[10px] uppercase tracking-wide">
                       {{ loc.ciudad }}, {{ loc.departamento }}
                     </div>
+                    <div v-if="loc.latitud && loc.longitud" class="text-[9px] font-mono text-muted-foreground/80 ml-3 py-0.5 flex items-center gap-1">
+                      <span class="text-primary">📍</span> {{ loc.latitud }}, {{ loc.longitud }} (r: {{ loc.radio || 100 }}m)
+                    </div>
+                    <div v-else class="text-[9px] font-semibold text-amber-500/80 ml-3 py-0.5 flex items-center gap-1">
+                      <span>⚠️</span> Sin coordenadas de geocerca
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell class="py-3">

@@ -245,7 +245,7 @@ export const useAttendanceStore = defineStore('attendance', {
       }
     },
 
-    async registerSelfAttendance(technicianId, type) {
+    async registerSelfAttendance(technicianId, type, extraData = {}) {
       this.loading = true;
       try {
         const d = new Date();
@@ -258,7 +258,8 @@ export const useAttendanceStore = defineStore('attendance', {
           id: existingRecord?.id,
           technicianId,
           date: localDate,
-          status: existingRecord?.status || 'present'
+          status: existingRecord?.status || 'present',
+          ...extraData
         };
 
         if (type === 'checkIn') {
@@ -285,22 +286,22 @@ export const useAttendanceStore = defineStore('attendance', {
 
         const id = await attendanceService.saveAttendance(data);
 
+        const mergedRecord = {
+          ...existingRecord,
+          ...data,
+          id
+        };
+
         if (localDate === this.selectedDate) {
-          this.records[technicianId] = {
-            ...data,
-            id
-          };
+          this.records[technicianId] = mergedRecord;
         }
 
         if (!this.monthlyRecords[localDate]) {
           this.monthlyRecords[localDate] = {};
         }
-        this.monthlyRecords[localDate][technicianId] = {
-          ...data,
-          id
-        };
+        this.monthlyRecords[localDate][technicianId] = mergedRecord;
 
-        return { id, data };
+        return { id, data: mergedRecord };
       } catch (err) {
         this.error = err.message;
         throw err;

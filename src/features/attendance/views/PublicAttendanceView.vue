@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { usePersonalStore } from '../../personal/store/personalStore';
 import { useAttendanceStore } from '../store/attendanceStore';
+import { useLocationStore } from '../../locations/store/locationStore';
 import { attendanceService } from '../services/attendanceService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,11 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'vue-sonner';
 import {
-  Fingerprint, Clock, CheckCircle2, ChevronRight, User, AlertCircle, RefreshCw, LogOut, LogIn, ArrowLeft
+  Fingerprint, Clock, CheckCircle2, ChevronRight, User, AlertCircle, RefreshCw, LogOut, LogIn, ArrowLeft, Camera, MapPin, Check
 } from 'lucide-vue-next';
 
 const personalStore = usePersonalStore();
 const attendanceStore = useAttendanceStore();
+const locationStore = useLocationStore();
 
 const step = ref(1); // 1: ID, 2: Actions, 3: Success
 const selectedTechId = ref('');
@@ -33,6 +35,20 @@ let countdownTimer = null;
 const successMessage = ref('');
 const successTime = ref('');
 const successType = ref(''); // 'entrada' | 'salida'
+
+// Camera state refs
+const videoRef = ref(null);
+const canvasRef = ref(null);
+const mediaStream = ref(null);
+const isCameraReady = ref(false);
+const cameraError = ref('');
+
+// Geolocation state refs
+const userCoordinates = ref(null);
+const geolocationError = ref('');
+const distanceToOffice = ref(null);
+const checkingLocation = ref(false);
+const officeGeocerca = ref(null);
 
 // Format date to local YYYY-MM-DD
 const getLocalDateString = () => {
@@ -81,7 +97,10 @@ onMounted(async () => {
   loading.value = true;
   dbError.value = '';
   try {
-    await personalStore.fetchTechnicians();
+    await Promise.all([
+      personalStore.fetchTechnicians(),
+      locationStore.fetchLocations()
+    ]);
     if (personalStore.error) {
       dbError.value = personalStore.error;
       toast.error(personalStore.error);
@@ -100,7 +119,141 @@ onMounted(async () => {
 onUnmounted(() => {
   if (clockTimer) clearInterval(clockTimer);
   if (countdownTimer) clearInterval(countdownTimer);
+  stopCamera();
 });
+
+// CAMERA FUNCTIONS
+const startCamera = async () => {
+  cameraError.value = '';
+  isCameraReady.value = false;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: 320, height: 240 }
+    });
+    mediaStream.value = stream;
+    await nextTick();
+    if (videoRef.value) {
+      videoRef.value.srcObject = stream;
+      videoRef.value.onloadedmetadata = () => {
+        isCameraReady.value = true;
+      };
+    }
+  } catch (err) {
+    console.error("Error accessing camera:", err);
+    cameraError.value = 'No se pudo acceder a la cámara frontal. Active la cámara para marcar.';
+    toast.error(cameraError.value);
+  }
+};
+
+const stopCamera = () => {
+  if (mediaStream.value) {
+    mediaStream.value.getTracks().forEach(track => track.stop());
+    mediaStream.value = null;
+    isCameraReady.value = false;
+  }
+};
+
+const captureSelfie = () => {
+  if (!videoRef.value || !canvasRef.value) return null;
+  const video = videoRef.value;
+  const canvas = canvasRef.value;
+  canvas.width = 320;
+  canvas.height = 240;
+  const ctx = canvas.getContext('2d');
+  
+  // Mirror horizontally
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  
+  return canvas.toDataURL('image/jpeg', 0.6);
+};
+
+// GPS GEOLOCATION FUNCTIONS
+const getGPSLocation = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('La geolocalización no está soportada por este navegador.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+      },
+      (error) => {
+        let msg = 'Error al obtener ubicación GPS.';
+        if (error.code === error.PERMISSION_DENIED) {
+          msg = 'Acceso de ubicación denegado. Permita el uso de ubicación en su navegador.';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          msg = 'La ubicación GPS no está disponible.';
+        } else if (error.code === error.TIMEOUT) {
+          msg = 'Tiempo de espera agotado al leer GPS.';
+        }
+        reject(new Error(msg));
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+};
+
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371e3; // Radio de la Tierra en metros
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // en metros
+};
+
+const verifyLocationRestriction = async (tech) => {
+  geolocationError.value = '';
+  userCoordinates.value = null;
+  distanceToOffice.value = null;
+  officeGeocerca.value = null;
+
+  const techLocation = locationStore.locations.find(l => l.id === tech.locationId);
+  if (techLocation && techLocation.latitud && techLocation.longitud) {
+    officeGeocerca.value = {
+      nombre: techLocation.nombre,
+      latitud: parseFloat(techLocation.latitud),
+      longitud: parseFloat(techLocation.longitud),
+      radio: techLocation.radio ? parseFloat(techLocation.radio) : 100
+    };
+    
+    checkingLocation.value = true;
+    try {
+      const coords = await getGPSLocation();
+      userCoordinates.value = coords;
+      
+      const dist = calculateDistance(coords.lat, coords.lng, officeGeocerca.value.latitud, officeGeocerca.value.longitud);
+      distanceToOffice.value = dist;
+      
+      if (dist > officeGeocerca.value.radio) {
+        toast.error(`Ubicación GPS lejana a la sede. Distancia: ${dist.toFixed(0)}m.`);
+      } else {
+        toast.success(`Ubicación de geocerca verificada.`);
+      }
+    } catch (err) {
+      console.error('GPS error:', err);
+      geolocationError.value = err.message;
+      toast.error(err.message);
+    } finally {
+      checkingLocation.value = false;
+    }
+  } else {
+    officeGeocerca.value = null;
+  }
+};
 
 const handleVerification = async () => {
   if (!selectedTechId.value) {
@@ -135,6 +288,10 @@ const handleVerification = async () => {
     todayRecord.value = records[tech.id] || null;
     step.value = 2;
     toast.success(`Identidad verificada. ¡Hola ${tech.fullName.split(' ')[0]}!`);
+    
+    // Iniciar cámara y verificar geocerca
+    startCamera();
+    verifyLocationRestriction(tech);
   } catch (err) {
     console.error('Error fetching today record:', err);
     toast.error('Error al conectar con la base de datos.');
@@ -151,15 +308,61 @@ const formatTime = (timestamp) => {
 
 const handleMark = async (type) => {
   if (!verifiedTech.value) return;
+
+  // 1. Validar Geocerca GPS si está configurada
+  if (officeGeocerca.value) {
+    if (geolocationError.value) {
+      toast.error(`GPS Error: ${geolocationError.value}. No se puede marcar.`);
+      return;
+    }
+    if (checkingLocation.value) {
+      toast.error('Determinando ubicación GPS actual. Espere un momento...');
+      return;
+    }
+    if (!userCoordinates.value) {
+      toast.error('No se ha podido leer la ubicación GPS del dispositivo.');
+      return;
+    }
+    if (distanceToOffice.value > officeGeocerca.value.radio) {
+      toast.error(`Acceso denegado: Estás fuera del rango de la sede (${distanceToOffice.value.toFixed(0)}m de distancia. Límite: ${officeGeocerca.value.radio}m)`);
+      return;
+    }
+  }
+
+  // 2. Validar captura de selfie
+  let selfieBase64 = null;
+  if (isCameraReady.value) {
+    selfieBase64 = captureSelfie();
+  } else {
+    toast.error('La cámara no está lista. Por favor actívala para marcar asistencia.');
+    return;
+  }
+
   loading.value = true;
   try {
-    const { data } = await attendanceStore.registerSelfAttendance(verifiedTech.value.id, type);
+    const extraData = {};
+    const locData = userCoordinates.value ? {
+      lat: userCoordinates.value.lat,
+      lng: userCoordinates.value.lng,
+      distance: distanceToOffice.value
+    } : null;
+
+    if (type === 'checkIn') {
+      extraData.checkInPhoto = selfieBase64;
+      if (locData) extraData.checkInLocation = locData;
+    } else {
+      extraData.checkOutPhoto = selfieBase64;
+      if (locData) extraData.checkOutLocation = locData;
+    }
+
+    const { data } = await attendanceStore.registerSelfAttendance(verifiedTech.value.id, type, extraData);
     
     successType.value = type === 'checkIn' ? 'Entrada' : 'Salida';
     const timestamp = type === 'checkIn' ? data.checkIn : data.checkOut;
     successTime.value = formatTime(timestamp);
     successMessage.value = `Has registrado tu ${successType.value.toLowerCase()} correctamente a las ${successTime.value}.`;
     
+    stopCamera();
     step.value = 3;
     startCountdown();
   } catch (err) {
@@ -187,12 +390,14 @@ const resetFlow = () => {
   dniInput.value = '';
   verifiedTech.value = null;
   todayRecord.value = null;
+  stopCamera();
   if (countdownTimer) clearInterval(countdownTimer);
 };
 
 const handleBack = () => {
   step.value = 1;
   dniInput.value = '';
+  stopCamera();
 };
 </script>
 
@@ -297,6 +502,74 @@ const handleBack = () => {
           <div class="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1 capitalize">{{ currentDate }}</div>
         </div>
 
+
+        <!-- Camera & GPS Verification Container -->
+        <div class="flex flex-col items-center gap-2.5 border border-border/85 rounded-xl p-3.5 bg-card shadow-sm">
+          <div class="flex items-center gap-1.5 self-start text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+            <Camera :size="14" class="text-primary" />
+            <span>Foto de Verificación</span>
+          </div>
+
+          <!-- Video Stream -->
+          <div class="relative w-full aspect-video rounded-lg border-2 border-primary/20 bg-muted overflow-hidden flex items-center justify-center shadow-inner">
+            <video 
+              ref="videoRef" 
+              autoplay 
+              playsinline 
+              muted
+              class="w-full h-full object-cover transform -scale-x-100" 
+              v-show="isCameraReady"
+            ></video>
+            <canvas ref="canvasRef" class="hidden"></canvas>
+
+            <!-- Loading and Error Placeholders -->
+            <div v-if="!isCameraReady && !cameraError" class="flex flex-col items-center gap-2 text-muted-foreground p-4 text-center">
+              <div class="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <span class="text-[10px] font-semibold">Iniciando cámara frontal...</span>
+            </div>
+            <div v-if="cameraError" class="flex flex-col items-center gap-1.5 text-destructive p-4 text-center">
+              <AlertCircle :size="20" class="opacity-85" />
+              <span class="text-[10px] font-bold leading-tight">{{ cameraError }}</span>
+            </div>
+          </div>
+
+          <!-- GPS Geofence details -->
+          <div class="w-full mt-1.5 border-t pt-2">
+            <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+              <span class="flex items-center gap-1"><MapPin :size="11" class="text-primary" /> Ubicación GPS</span>
+              
+              <span v-if="officeGeocerca && checkingLocation" class="text-amber-500 flex items-center gap-1 animate-pulse">
+                <RefreshCw :size="10" class="animate-spin" /> Obteniendo...
+              </span>
+              <span v-else-if="officeGeocerca && geolocationError" class="text-rose-500 font-bold">
+                ⚠️ Error GPS
+              </span>
+              <span v-else-if="officeGeocerca && distanceToOffice !== null" :class="distanceToOffice <= officeGeocerca.radio ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold'">
+                {{ distanceToOffice <= officeGeocerca.radio ? '✅ En Rango' : '❌ Fuera de Rango' }}
+              </span>
+              <span v-else-if="!officeGeocerca" class="text-emerald-500 font-bold">
+                ✅ Sede sin restricción
+              </span>
+            </div>
+
+            <div class="text-[10px] font-semibold text-muted-foreground leading-snug">
+              <div v-if="checkingLocation" class="text-amber-500/80">
+                Calculando distancia a la sede: {{ officeGeocerca?.nombre }}...
+              </div>
+              <div v-else-if="geolocationError" class="text-rose-500 leading-tight">
+                {{ geolocationError }}
+              </div>
+              <div v-else-if="officeGeocerca && distanceToOffice !== null" class="flex justify-between">
+                <span>Distancia a sede: <strong class="text-foreground">{{ distanceToOffice.toFixed(0) }}m</strong></span>
+                <span>Radio de tolerancia: <strong class="text-foreground">{{ officeGeocerca.radio }}m</strong></span>
+              </div>
+              <div v-else-if="!officeGeocerca">
+                Esta sede no requiere validación de coordenadas GPS.
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Mark Buttons Area -->
         <div class="grid gap-3.5">
           <!-- Entrada (Check In) -->
@@ -321,9 +594,22 @@ const handleBack = () => {
               </div>
             </template>
             <template v-else>
-              <Button @click="handleMark('checkIn')" :disabled="loading" class="w-full bg-emerald-600 hover:bg-emerald-500 font-bold text-xs uppercase tracking-wider shadow-md">
+              <Button 
+                @click="handleMark('checkIn')" 
+                :disabled="loading || checkingLocation || (officeGeocerca && (geolocationError || distanceToOffice > officeGeocerca.radio || !userCoordinates)) || !isCameraReady" 
+                class="w-full bg-emerald-600 hover:bg-emerald-500 font-bold text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
+              >
                 Registrar Entrada
               </Button>
+              <div v-if="officeGeocerca && distanceToOffice > officeGeocerca.radio" class="mt-2 text-[9px] text-rose-500 font-bold leading-normal">
+                ⚠️ Fuera de rango: Debe estar a menos de {{ officeGeocerca.radio }}m de la oficina.
+              </div>
+              <div v-else-if="officeGeocerca && geolocationError" class="mt-2 text-[9px] text-rose-500 font-bold leading-normal">
+                ⚠️ Active la ubicación GPS y brinde permisos al navegador para marcar.
+              </div>
+              <div v-else-if="!isCameraReady && !cameraError" class="mt-2 text-[9px] text-amber-500 font-bold leading-normal">
+                ⚠️ Esperando activación de la cámara para la selfie obligatoria.
+              </div>
             </template>
           </div>
 
@@ -358,9 +644,22 @@ const handleBack = () => {
               </div>
             </template>
             <template v-else>
-              <Button @click="handleMark('checkOut')" :disabled="loading" class="w-full bg-sky-600 hover:bg-sky-500 font-bold text-xs uppercase tracking-wider shadow-md">
+              <Button 
+                @click="handleMark('checkOut')" 
+                :disabled="loading || checkingLocation || (officeGeocerca && (geolocationError || distanceToOffice > officeGeocerca.radio || !userCoordinates)) || !isCameraReady" 
+                class="w-full bg-sky-600 hover:bg-sky-500 font-bold text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
+              >
                 Registrar Salida
               </Button>
+              <div v-if="officeGeocerca && distanceToOffice > officeGeocerca.radio" class="mt-2 text-[9px] text-rose-500 font-bold leading-normal">
+                ⚠️ Fuera de rango: Debe estar a menos de {{ officeGeocerca.radio }}m de la oficina.
+              </div>
+              <div v-else-if="officeGeocerca && geolocationError" class="mt-2 text-[9px] text-rose-500 font-bold leading-normal">
+                ⚠️ Active la ubicación GPS y brinde permisos al navegador para marcar.
+              </div>
+              <div v-else-if="!isCameraReady && !cameraError" class="mt-2 text-[9px] text-amber-500 font-bold leading-normal">
+                ⚠️ Esperando activación de la cámara para la selfie obligatoria.
+              </div>
             </template>
           </div>
         </div>
