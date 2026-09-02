@@ -375,12 +375,12 @@ export function useReports() {
                     fillColor: [229, 231, 235],
                     textColor: [0, 0, 0],
                     fontStyle: 'bold',
-                    fontSize: 7,
+                    fontSize: 8,
                     lineColor: [0, 0, 0],
                     lineWidth: 0.2,
                 },
                 bodyStyles: {
-                    fontSize: 6.5,
+                    fontSize: 8,
                     fontStyle: 'bold',
                     textColor: [0, 0, 0],
                     lineColor: [0, 0, 0],
@@ -391,12 +391,12 @@ export function useReports() {
                     0: { halign: 'center', cellWidth: 8 },
                     1: { halign: 'left', cellWidth: 65 },
                     2: { halign: 'center', cellWidth: 20 },
-                    3: { halign: 'left', cellWidth: 30 },
-                    4: { halign: 'center', cellWidth: 16 },
-                    5: { halign: 'center', cellWidth: 16 },
+                    3: { halign: 'left', cellWidth: 28 },
+                    4: { halign: 'center', cellWidth: 18 },
+                    5: { halign: 'center', cellWidth: 18 },
                     6: { halign: 'center', cellWidth: 35 },
-                    7: { halign: 'center', cellWidth: 22 },
-                    8: { halign: 'center', cellWidth: 22 },
+                    7: { halign: 'center', cellWidth: 21 },
+                    8: { halign: 'center', cellWidth: 21 },
                     9: { halign: 'center', cellWidth: 35 },
                 },
                 didParseCell: (data) => {
@@ -409,7 +409,7 @@ export function useReports() {
 
                         if (data.column.index === 4 || data.column.index === 5) {
                             if (['VACACIONES', 'COMPENSACIÓN', 'NO ASISTIÓ', 'D. MÉDICO', 'PERMISO'].includes(strVal)) {
-                                data.cell.styles.fontSize = strVal === 'COMPENSACIÓN' ? 3.9 : 4.3;
+                                data.cell.styles.fontSize = strVal === 'COMPENSACIÓN' ? 5.2 : 5.8;
                             }
 
                             if (strVal === 'NO ASISTIÓ') {
