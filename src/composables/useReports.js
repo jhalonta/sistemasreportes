@@ -409,19 +409,19 @@ export function useReports() {
 
                         if (data.column.index === 4 || data.column.index === 5) {
                             if (['VACACIONES', 'COMPENSACIÓN', 'NO ASISTIÓ', 'D. MÉDICO', 'PERMISO'].includes(strVal)) {
-                                data.cell.styles.fontSize = 4.6;
+                                data.cell.styles.fontSize = strVal === 'COMPENSACIÓN' ? 3.9 : 4.3;
                             }
 
                             if (strVal === 'NO ASISTIÓ') {
-                                data.cell.styles.fillColor = [254, 226, 226];
+                                data.cell.styles.fillColor = [252, 165, 165]; // Stronger Red
                             } else if (strVal === 'VACACIONES') {
-                                data.cell.styles.fillColor = [243, 232, 255];
+                                data.cell.styles.fillColor = [216, 180, 254]; // Stronger Purple
                             } else if (strVal === 'COMPENSACIÓN') {
-                                data.cell.styles.fillColor = [238, 242, 255];
+                                data.cell.styles.fillColor = [187, 247, 208]; // Verde Caña (Sugarcane Lime Green)
                             } else if (strVal === 'PERMISO') {
-                                data.cell.styles.fillColor = [254, 243, 199];
+                                data.cell.styles.fillColor = [253, 224, 71];  // Stronger Amber Yellow
                             } else if (strVal === 'D. MÉDICO') {
-                                data.cell.styles.fillColor = [224, 242, 254];
+                                data.cell.styles.fillColor = [186, 230, 253]; // Stronger Sky Blue
                             }
                         }
                     }
