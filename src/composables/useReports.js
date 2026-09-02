@@ -390,14 +390,14 @@ export function useReports() {
                 columnStyles: {
                     0: { halign: 'center', cellWidth: 8 },
                     1: { halign: 'left', cellWidth: 65 },
-                    2: { halign: 'center', cellWidth: 20 },
+                    2: { halign: 'center', cellWidth: 19 },
                     3: { halign: 'left', cellWidth: 28 },
                     4: { halign: 'center', cellWidth: 18 },
                     5: { halign: 'center', cellWidth: 18 },
-                    6: { halign: 'center', cellWidth: 35 },
-                    7: { halign: 'center', cellWidth: 21 },
-                    8: { halign: 'center', cellWidth: 21 },
-                    9: { halign: 'center', cellWidth: 35 },
+                    6: { halign: 'center', cellWidth: 16 },
+                    7: { halign: 'center', cellWidth: 16 },
+                    8: { halign: 'center', cellWidth: 16 },
+                    9: { halign: 'center', cellWidth: 55 },
                 },
                 didParseCell: (data) => {
                     if (data.section === 'body') {

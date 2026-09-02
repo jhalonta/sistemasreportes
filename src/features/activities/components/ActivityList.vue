@@ -131,60 +131,62 @@ const getStatusBadge = (status) => {
                 </div>
 
                 <!-- Group Body: Table -->
-                <Table>
-                    <TableHeader>
-                        <TableRow class="hover:bg-transparent text-[10px] uppercase text-muted-foreground">
-                            <TableHead class="h-8 pl-4">Descripción</TableHead>
-                            <TableHead class="h-8 text-center w-[80px]">Asignado</TableHead>
-                            <TableHead class="h-8 text-center w-[80px]">Realizado</TableHead>
-                            <TableHead class="h-8 text-center w-[120px]">Estado</TableHead>
-                            <TableHead class="h-8 text-right pr-4 w-[140px]">Acciones</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-for="activity in group.items" :key="activity.id" class="group/row">
-                            <TableCell class="pl-4 py-2">
-                                <div class="space-y-0.5">
+                <div class="overflow-x-auto w-full">
+                    <Table class="w-full min-w-max border-collapse">
+                        <TableHeader>
+                            <TableRow class="hover:bg-transparent text-[10px] uppercase text-muted-foreground">
+                                <TableHead class="h-8 pl-4 whitespace-nowrap">Descripción / Actividad</TableHead>
+                                <TableHead class="h-8 text-center w-24 whitespace-nowrap">Asignado</TableHead>
+                                <TableHead class="h-8 text-center w-24 whitespace-nowrap">Realizado</TableHead>
+                                <TableHead class="h-8 text-center w-28 whitespace-nowrap">Estado</TableHead>
+                                <TableHead class="h-8 text-right pr-4 w-20 whitespace-nowrap">Acciones</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-for="activity in group.items" :key="activity.id" class="group/row">
+                                <TableCell class="pl-4 py-2 whitespace-nowrap">
                                     <div class="flex items-center gap-2">
-                                        <p class="text-sm font-semibold leading-none">{{ activity.description }}</p>
+                                        <code v-if="activity.rateCode" class="text-xs font-bold text-primary bg-primary/5 px-1.5 py-0.5 rounded border border-primary/10 tracking-wider shrink-0">
+                                            {{ activity.rateCode }}
+                                        </code>
+                                        <p class="text-sm font-semibold leading-none whitespace-nowrap">{{ activity.description }}</p>
                                         <Badge variant="secondary"
-                                            class="text-[9px] font-bold px-1 h-3.5 uppercase bg-muted/50 border-none">
+                                            class="text-[9px] font-bold px-1 h-3.5 uppercase bg-muted/50 border-none shrink-0">
                                             {{ activity.zone || 'Urbano' }}
                                         </Badge>
+                                        <span v-if="activity.observations"
+                                            class="text-[11px] text-muted-foreground italic whitespace-nowrap">
+                                            "{{ activity.observations }}"
+                                        </span>
                                     </div>
-                                    <p v-if="activity.observations"
-                                        class="text-[11px] text-muted-foreground italic truncate max-w-[300px]">
-                                        "{{ activity.observations }}"
-                                    </p>
-                                </div>
-                            </TableCell>
+                                </TableCell>
 
-                            <TableCell class="text-center p-2">
-                                <div class="flex flex-col items-center">
-                                    <span class="text-xs font-bold">{{ activity.assigned }}</span>
-                                    <span class="text-[9px] text-muted-foreground">S/ {{ activity.projectedValue ||
-                                        '0.00' }}</span>
-                                </div>
-                            </TableCell>
+                                <TableCell class="text-center p-2 whitespace-nowrap w-24">
+                                    <div class="flex flex-col items-center">
+                                        <span class="text-xs font-bold tabular-nums">{{ activity.assigned }}</span>
+                                        <span class="text-[9px] text-muted-foreground tabular-nums">S/ {{ activity.projectedValue ||
+                                            '0.00' }}</span>
+                                    </div>
+                                </TableCell>
 
-                            <TableCell class="text-center p-2">
-                                <div class="flex flex-col items-center">
-                                    <span class="text-xs font-bold text-emerald-600">{{ activity.completed }}</span>
-                                    <span class="text-[9px] text-emerald-600/70">S/ {{ activity.realizedValue ||
-                                        activity.totalValue
-                                        || '0.00' }}</span>
-                                </div>
-                            </TableCell>
+                                <TableCell class="text-center p-2 whitespace-nowrap w-24">
+                                    <div class="flex flex-col items-center">
+                                        <span class="text-xs font-bold text-emerald-600 tabular-nums">{{ activity.completed }}</span>
+                                        <span class="text-[9px] text-emerald-600/70 tabular-nums">S/ {{ activity.realizedValue ||
+                                            activity.totalValue
+                                            || '0.00' }}</span>
+                                    </div>
+                                </TableCell>
 
-                            <TableCell class="text-center p-2">
-                                <Badge
-                                    :class="cn('text-[10px] font-bold px-1.5 h-5 border-none', getStatusBadge(activity.status).class)">
-                                    {{ getStatusBadge(activity.status).label }}
-                                </Badge>
-                            </TableCell>
+                                <TableCell class="text-center p-2 whitespace-nowrap w-28">
+                                    <Badge
+                                        :class="cn('text-[10px] font-bold px-1.5 h-5 border-none whitespace-nowrap', getStatusBadge(activity.status).class)">
+                                        {{ getStatusBadge(activity.status).label }}
+                                    </Badge>
+                                </TableCell>
 
-                            <TableCell class="text-right pr-4 py-2">
-                                <div class="flex justify-end pr-1">
+                                <TableCell class="text-right pr-4 py-2 whitespace-nowrap w-20">
+                                    <div class="flex justify-end pr-1">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger as-child>
                                             <Button variant="ghost" size="icon"
@@ -243,6 +245,7 @@ const getStatusBadge = (status) => {
                         </TableRow>
                     </TableBody>
                 </Table>
+                </div>
             </Card>
         </div>
     </div>

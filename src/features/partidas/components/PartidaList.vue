@@ -56,45 +56,49 @@ const saveEdit = () => {
             </div>
         </div>
 
-        <div v-else class="overflow-x-auto">
-            <Table class="min-w-[800px]">
+        <div v-else class="overflow-x-auto w-full">
+            <Table class="w-full min-w-max border-collapse">
                 <TableHeader>
                     <TableRow class="hover:bg-transparent bg-muted/30">
-                        <TableHead class="pl-4 text-[10px] font-bold uppercase tracking-widest w-[100px]">Código
+                        <TableHead class="pl-4 text-[10px] font-bold uppercase tracking-widest w-16 whitespace-nowrap">
+                            Código
                         </TableHead>
-                        <TableHead class="text-[10px] font-bold uppercase tracking-widest flex-1">Nombre de Partida
+                        <TableHead class="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">
+                            Nombre de Partida / Descripción
                         </TableHead>
-                        <TableHead class="text-[10px] font-bold uppercase tracking-widest w-[180px]">Categoría
+                        <TableHead class="text-[10px] font-bold uppercase tracking-widest w-32 whitespace-nowrap">
+                            Categoría
                         </TableHead>
-                        <TableHead class="text-[10px] font-bold uppercase tracking-widest text-right w-[120px]">Precio
-                            Rural</TableHead>
-                        <TableHead class="text-[10px] font-bold uppercase tracking-widest text-right w-[120px]">Precio
-                            Urbano</TableHead>
+                        <TableHead class="text-[10px] font-bold uppercase tracking-widest text-right w-28 whitespace-nowrap">
+                            Precio Rural
+                        </TableHead>
+                        <TableHead class="text-[10px] font-bold uppercase tracking-widest text-right w-28 whitespace-nowrap">
+                            Precio Urbano
+                        </TableHead>
                         <TableHead v-if="isAdmin"
-                            class="text-[10px] font-bold uppercase tracking-widest text-right pr-4 w-[100px]">Acciones
+                            class="text-[10px] font-bold uppercase tracking-widest text-right pr-4 w-20 whitespace-nowrap">
+                            Acciones
                         </TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     <TableRow v-for="p in partidas" :key="p.id" class="group">
-                        <TableCell class="pl-4 py-3">
+                        <TableCell class="pl-4 py-3 whitespace-nowrap w-16">
                             <code
-                                class="text-xs font-bold text-primary bg-primary/5 px-1.5 py-0.5 rounded border border-primary/10">
+                                class="text-xs font-bold text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10 tracking-wider">
                                 {{ p.code }}
                             </code>
                         </TableCell>
-                        <TableCell class="py-3 max-w-[300px]">
-                            <span class="text-xs font-semibold text-foreground truncate block" :title="p.name">
-                                {{ p.name }}
-                            </span>
+                        <TableCell class="py-3 whitespace-nowrap font-semibold text-xs text-foreground">
+                            {{ p.name }}
                         </TableCell>
-                        <TableCell class="py-3">
+                        <TableCell class="py-3 whitespace-nowrap w-32">
                             <Badge variant="outline" class="text-[10px] font-medium border-muted-foreground/20">
                                 {{ p.category }}
                             </Badge>
                         </TableCell>
 
-                        <TableCell class="text-right py-3 tabular-nums">
+                        <TableCell class="text-right py-3 tabular-nums whitespace-nowrap w-28">
                             <div v-if="editingId === p.id" class="flex justify-end">
                                 <Input type="number" v-model.number="editForm.priceRural" step="0.01"
                                     class="h-8 w-24 text-right text-xs font-bold" />
@@ -104,7 +108,7 @@ const saveEdit = () => {
                             </span>
                         </TableCell>
 
-                        <TableCell class="text-right py-3 tabular-nums">
+                        <TableCell class="text-right py-3 tabular-nums whitespace-nowrap w-28">
                             <div v-if="editingId === p.id" class="flex justify-end">
                                 <Input type="number" v-model.number="editForm.priceUrban" step="0.01"
                                     class="h-8 w-24 text-right text-xs font-bold" />
@@ -114,7 +118,7 @@ const saveEdit = () => {
                             </span>
                         </TableCell>
 
-                        <TableCell v-if="isAdmin" class="text-right pr-4 py-3">
+                        <TableCell v-if="isAdmin" class="text-right pr-4 py-3 whitespace-nowrap w-20">
                             <div v-if="editingId === p.id" class="flex justify-end gap-1">
                                 <Button variant="ghost" size="icon"
                                     class="h-7 w-7 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
