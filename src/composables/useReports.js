@@ -381,6 +381,8 @@ export function useReports() {
                 },
                 bodyStyles: {
                     fontSize: 6.5,
+                    fontStyle: 'bold',
+                    textColor: [0, 0, 0],
                     lineColor: [0, 0, 0],
                     lineWidth: 0.2,
                     valign: 'middle',
@@ -389,9 +391,9 @@ export function useReports() {
                     0: { halign: 'center', cellWidth: 8 },
                     1: { halign: 'left', cellWidth: 65 },
                     2: { halign: 'center', cellWidth: 20 },
-                    3: { halign: 'left', cellWidth: 32 },
-                    4: { halign: 'center', cellWidth: 15 },
-                    5: { halign: 'center', cellWidth: 15 },
+                    3: { halign: 'left', cellWidth: 30 },
+                    4: { halign: 'center', cellWidth: 16 },
+                    5: { halign: 'center', cellWidth: 16 },
                     6: { halign: 'center', cellWidth: 35 },
                     7: { halign: 'center', cellWidth: 22 },
                     8: { halign: 'center', cellWidth: 22 },
@@ -399,13 +401,15 @@ export function useReports() {
                 },
                 didParseCell: (data) => {
                     if (data.section === 'body') {
+                        data.cell.styles.textColor = [0, 0, 0];
+                        data.cell.styles.fontStyle = 'bold';
+
                         const val = typeof data.cell.raw === 'object' ? data.cell.raw.content : data.cell.raw;
                         const strVal = String(val || '').trim();
 
                         if (data.column.index === 4 || data.column.index === 5) {
                             if (['VACACIONES', 'COMPENSACIÓN', 'NO ASISTIÓ', 'D. MÉDICO', 'PERMISO'].includes(strVal)) {
-                                data.cell.styles.fontSize = 5.2;
-                                data.cell.styles.fontStyle = 'bold';
+                                data.cell.styles.fontSize = 4.6;
                             }
 
                             if (strVal === 'NO ASISTIÓ') {
