@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, computed, ref, watch } from 'vue';
 import {
   ClipboardCheck, Printer, UserCheck, CircleCheck, CircleX,
   Clock, AlertTriangle, Search, HelpCircle, Stethoscope, CalendarIcon,
-  MoreHorizontal, UserMinus
+  MoreHorizontal, UserMinus, Sun, Scale
 } from 'lucide-vue-next';
 import { DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date';
 import { useAttendanceStore } from '../store/attendanceStore';
@@ -14,6 +14,7 @@ import { useLocationStore } from '../../locations/store/locationStore';
 import AttendanceNotesModal from '../components/AttendanceNotesModal.vue';
 import AttendanceConfirmModal from '../components/AttendanceConfirmModal.vue';
 import AttendanceEditModal from '../components/AttendanceEditModal.vue';
+import AttendanceVacationModal from '../components/AttendanceVacationModal.vue';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -82,6 +83,20 @@ const selectedLocationId = ref('all');
 
 const showEditModal = ref(false);
 const selectedTechForEdit = ref(null);
+
+const showVacationModal = ref(false);
+const selectedTechForVacation = ref(null);
+
+const handleSaveVacation = async ({ startDate, endDate, notes }) => {
+  if (!selectedTechForVacation.value) return;
+  try {
+    await attendanceStore.saveVacationRange(selectedTechForVacation.value.id, startDate, endDate, notes);
+    showVacationModal.value = false;
+    selectedTechForVacation.value = null;
+  } catch (err) {
+    console.error('Error saving vacation range:', err);
+  }
+};
 
 const openEditModal = (tech) => {
   selectedTechForEdit.value = tech;
@@ -202,12 +217,18 @@ const getStatusInfo = (status) => {
     justified: { icon: CircleCheck, badge: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400', label: 'Justificado' },
     dm: { icon: Stethoscope, badge: 'bg-sky-500/15 text-sky-600 dark:text-sky-400', label: 'D. Médico' },
     permiso: { icon: UserMinus, badge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400', label: 'Permiso' },
+    vacaciones: { icon: Sun, badge: 'bg-purple-500/15 text-purple-600 dark:text-purple-400', label: 'Vacaciones' },
+    compensacion: { icon: Scale, badge: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400', label: 'Compensación' },
   };
   return map[status] ?? { icon: HelpCircle, badge: 'bg-muted text-muted-foreground', label: 'Pendiente' };
 };
 
 const handleStatusClick = async (techId, status) => {
-  if (['late', 'justified', 'dm', 'absent', 'permiso'].includes(status)) {
+  if (status === 'vacaciones') {
+    const tech = techStore.technicians.find(t => t.id === techId);
+    selectedTechForVacation.value = tech || { id: techId };
+    showVacationModal.value = true;
+  } else if (['late', 'justified', 'dm', 'absent', 'permiso', 'compensacion'].includes(status)) {
     selectedTechForNotes.value = techId;
     pendingStatus.value = status;
     notesText.value = attendanceStore.records[techId]?.notes || '';
@@ -488,6 +509,14 @@ const printReport = async () => {
                             <UserMinus class="mr-2 h-4 w-4" />
                             <span>Marcar Permiso</span>
                           </DropdownMenuItem>
+                          <DropdownMenuItem @click="handleStatusClick(t.id, 'vacaciones')" class="text-purple-600 font-medium">
+                            <Sun class="mr-2 h-4 w-4" />
+                            <span>Marcar Vacaciones</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem @click="handleStatusClick(t.id, 'compensacion')" class="text-indigo-600 font-medium">
+                            <Scale class="mr-2 h-4 w-4" />
+                            <span>Marcar Compensación</span>
+                          </DropdownMenuItem>
                           <DropdownMenuItem @click="handleStatusClick(t.id, 'dm')" class="text-sky-600 font-medium">
                             <Stethoscope class="mr-2 h-4 w-4" />
                             <span>Descanso Médico</span>
@@ -518,6 +547,15 @@ const printReport = async () => {
         :loading="attendanceStore.loading"
         @close="showEditModal = false; selectedTechForEdit = null"
         @save="handleSaveEdit"
+      />
+
+      <AttendanceVacationModal
+        :show="showVacationModal"
+        :technician="selectedTechForVacation"
+        :initial-date="attendanceStore.selectedDate"
+        :loading="attendanceStore.loading"
+        @close="showVacationModal = false; selectedTechForVacation = null"
+        @save="handleSaveVacation"
       />
     </div>
   </TooltipProvider>

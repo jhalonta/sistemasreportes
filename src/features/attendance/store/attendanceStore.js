@@ -212,8 +212,8 @@ export const useAttendanceStore = defineStore('attendance', {
             }
           }
         } else {
-          // If status is absent/dm/permiso, clear check-in and check-out
-          if (status === 'absent' || status === 'dm' || status === 'permiso') {
+          // If status is absent/dm/permiso/vacaciones/compensacion, clear check-in and check-out
+          if (['absent', 'dm', 'permiso', 'vacaciones', 'compensacion'].includes(status)) {
             data.checkIn = null;
             data.checkOut = null;
           }
@@ -237,6 +237,60 @@ export const useAttendanceStore = defineStore('attendance', {
         };
 
         return id;
+      } catch (err) {
+        this.error = err.message;
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async saveVacationRange(technicianId, startDate, endDate, notes = '') {
+      this.loading = true;
+      try {
+        const dates = [];
+        const [sy, sm, sd] = startDate.split('-').map(Number);
+        const [ey, em, ed] = endDate.split('-').map(Number);
+        
+        let current = new Date(sy, sm - 1, sd);
+        const end = new Date(ey, em - 1, ed);
+
+        while (current <= end) {
+          const y = current.getFullYear();
+          const m = String(current.getMonth() + 1).padStart(2, '0');
+          const d = String(current.getDate()).padStart(2, '0');
+          dates.push(`${y}-${m}-${d}`);
+          current.setDate(current.getDate() + 1);
+        }
+
+        const existingRangeRecords = await attendanceService.getAttendanceByDateRange(startDate, endDate);
+
+        const promises = dates.map(async (dateStr) => {
+          const existingRecord = existingRangeRecords[dateStr]?.[technicianId];
+          const data = {
+            id: existingRecord?.id,
+            technicianId,
+            date: dateStr,
+            status: 'vacaciones',
+            notes: notes || 'Vacaciones programadas',
+            checkIn: null,
+            checkOut: null
+          };
+
+          const id = await attendanceService.saveAttendance(data);
+
+          const recordWithId = { ...data, id };
+          if (dateStr === this.selectedDate) {
+            this.records[technicianId] = recordWithId;
+          }
+
+          if (!this.monthlyRecords[dateStr]) {
+            this.monthlyRecords[dateStr] = {};
+          }
+          this.monthlyRecords[dateStr][technicianId] = recordWithId;
+        });
+
+        await Promise.all(promises);
       } catch (err) {
         this.error = err.message;
         throw err;

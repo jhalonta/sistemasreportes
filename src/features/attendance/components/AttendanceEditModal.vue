@@ -70,14 +70,14 @@ watch(() => props.show, (newShow) => {
     }
 });
 
-// Disable times if status is absent, dm or permiso
+// Disable times if status is absent, dm, permiso, vacaciones or compensacion
 const timesDisabled = computed(() => {
-    return ['absent', 'dm', 'permiso'].includes(status.value);
+    return ['absent', 'dm', 'permiso', 'vacaciones', 'compensacion'].includes(status.value);
 });
 
 // Auto clear times if status changed to a non-working status
 watch(status, (newStatus) => {
-    if (['absent', 'dm', 'permiso'].includes(newStatus)) {
+    if (['absent', 'dm', 'permiso', 'vacaciones', 'compensacion'].includes(newStatus)) {
         checkInTime.value = '';
         checkOutTime.value = '';
     } else if (!checkInTime.value) {
@@ -134,6 +134,8 @@ const handleSave = () => {
                             <SelectItem value="justified" class="font-bold">Justificado</SelectItem>
                             <SelectItem value="dm" class="font-bold">Descanso Médico</SelectItem>
                             <SelectItem value="permiso" class="font-bold">Permiso</SelectItem>
+                            <SelectItem value="vacaciones" class="font-bold">Vacaciones</SelectItem>
+                            <SelectItem value="compensacion" class="font-bold">Compensación</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

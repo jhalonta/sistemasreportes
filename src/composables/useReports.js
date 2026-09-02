@@ -26,8 +26,11 @@ export function useReports() {
     };
 
     const generateDailyReport = (dateString) => {
-        const dayRecords = attendanceStore.monthlyRecords[dateString] || {};
-        const dayActivities = activityStore.activities.filter(a => a.timestamp.startsWith(dateString));
+        const dayRecords = {
+            ...(attendanceStore.monthlyRecords[dateString] || {}),
+            ...(dateString === attendanceStore.selectedDate ? attendanceStore.records : {})
+        };
+        const dayActivities = activityStore.activities.filter(a => a.timestamp && a.timestamp.startsWith(dateString));
 
         const authorizedTechs = getAuthorizedTechnicians();
 
@@ -45,13 +48,14 @@ export function useReports() {
                 realizedValue: parseFloat(a.realizedValue) || 0
             }));
 
+            const isAdminRole = (person.role || '').toLowerCase().includes('administrativ') || (person.role || '').toLowerCase().includes('asistente');
             const activityDesc = personActivities.length > 0
                 ? personActivities.map(a => {
                     const label = a.description || a.rateCode;
                     const qtyInfo = (a.assigned || a.completed) ? ` (${a.completed}/${a.assigned})` : '';
                     return `${label}${qtyInfo}`;
                 }).join('; ')
-                : '';
+                : (isAdminRole ? 'TRABAJO DE GABINETE' : '');
 
             let formattedCheckIn = '';
             let formattedCheckOut = '';
@@ -60,6 +64,18 @@ export function useReports() {
                 if (attendance.status === 'absent') {
                     formattedCheckIn = 'NO ASISTIÓ';
                     formattedCheckOut = 'NO ASISTIÓ';
+                } else if (attendance.status === 'vacaciones') {
+                    formattedCheckIn = 'VACACIONES';
+                    formattedCheckOut = 'VACACIONES';
+                } else if (attendance.status === 'compensacion') {
+                    formattedCheckIn = 'COMPENSACIÓN';
+                    formattedCheckOut = 'COMPENSACIÓN';
+                } else if (attendance.status === 'permiso') {
+                    formattedCheckIn = 'PERMISO';
+                    formattedCheckOut = 'PERMISO';
+                } else if (attendance.status === 'dm') {
+                    formattedCheckIn = 'D. MÉDICO';
+                    formattedCheckOut = 'D. MÉDICO';
                 } else if (attendance.checkIn) {
                     // CheckIn might be Date or string
                     const checkInDate = attendance.checkIn.toDate ? attendance.checkIn.toDate() : new Date(attendance.checkIn);
@@ -274,6 +290,8 @@ export function useReports() {
                 const checkOutCell = currentRow.checkOut || '';
                 const firmaCell = '';
 
+                const isAdmin = (currentRow.role || '').toLowerCase().includes('administrativ') || (currentRow.role || '').toLowerCase().includes('asistente') || (currentRow.role || '').toLowerCase().includes('admin');
+
                 if (spannedRows.has(i)) {
                     // Skip columns 6, 7, 8 (Código, Asignada, Realizada) because they are spanned from the main tech row above
                     tableBody.push([
@@ -283,6 +301,20 @@ export function useReports() {
                         roleCell,
                         checkInCell,
                         checkOutCell,
+                        '',
+                        '',
+                        '',
+                        firmaCell
+                    ]);
+                } else if (isAdmin && currentRow.activitiesList.length === 0) {
+                    tableBody.push([
+                        itemCell,
+                        nameCell,
+                        dniCell,
+                        roleCell,
+                        checkInCell,
+                        checkOutCell,
+                        { content: 'TRABAJO DE GABINETE', colSpan: 3, styles: { halign: 'center', valign: 'middle' } },
                         firmaCell
                     ]);
                 } else {
@@ -319,6 +351,7 @@ export function useReports() {
             autoTable(doc, {
                 startY: y,
                 margin: { left: 14, right: 14 },
+                tableWidth: 269,
                 head: [
                     [
                         { content: 'ITEM', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
@@ -356,18 +389,37 @@ export function useReports() {
                     0: { halign: 'center', cellWidth: 8 },
                     1: { halign: 'left', cellWidth: 65 },
                     2: { halign: 'center', cellWidth: 20 },
-                    3: { halign: 'left', cellWidth: 30 },
-                    4: { halign: 'center', cellWidth: 12 },
-                    5: { halign: 'center', cellWidth: 12 },
-                    6: { halign: 'center', cellWidth: 28 },
+                    3: { halign: 'left', cellWidth: 32 },
+                    4: { halign: 'center', cellWidth: 15 },
+                    5: { halign: 'center', cellWidth: 15 },
+                    6: { halign: 'center', cellWidth: 35 },
                     7: { halign: 'center', cellWidth: 22 },
                     8: { halign: 'center', cellWidth: 22 },
-                    9: { halign: 'center', cellWidth: 32 },
+                    9: { halign: 'center', cellWidth: 35 },
                 },
                 didParseCell: (data) => {
-                    const rowData = rows[data.row.index];
-                    if (data.section === 'body' && rowData && rowData.checkIn === 'NO ASISTIÓ') {
-                        data.cell.styles.fillColor = [254, 226, 226];
+                    if (data.section === 'body') {
+                        const val = typeof data.cell.raw === 'object' ? data.cell.raw.content : data.cell.raw;
+                        const strVal = String(val || '').trim();
+
+                        if (data.column.index === 4 || data.column.index === 5) {
+                            if (['VACACIONES', 'COMPENSACIÓN', 'NO ASISTIÓ', 'D. MÉDICO', 'PERMISO'].includes(strVal)) {
+                                data.cell.styles.fontSize = 5.2;
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+
+                            if (strVal === 'NO ASISTIÓ') {
+                                data.cell.styles.fillColor = [254, 226, 226];
+                            } else if (strVal === 'VACACIONES') {
+                                data.cell.styles.fillColor = [243, 232, 255];
+                            } else if (strVal === 'COMPENSACIÓN') {
+                                data.cell.styles.fillColor = [238, 242, 255];
+                            } else if (strVal === 'PERMISO') {
+                                data.cell.styles.fillColor = [254, 243, 199];
+                            } else if (strVal === 'D. MÉDICO') {
+                                data.cell.styles.fillColor = [224, 242, 254];
+                            }
+                        }
                     }
                 },
             });
@@ -407,6 +459,12 @@ export function useReports() {
                         absentCount++;
                     } else if (dayRecord.status === 'dm') {
                         row.push('DM');
+                    } else if (dayRecord.status === 'permiso') {
+                        row.push('PER');
+                    } else if (dayRecord.status === 'vacaciones') {
+                        row.push('VAC');
+                    } else if (dayRecord.status === 'compensacion') {
+                        row.push('CMP');
                     } else {
                         row.push('');
                     }
@@ -477,6 +535,15 @@ export function useReports() {
                     } else if (data.cell.text[0] === 'DM') {
                         data.cell.styles.textColor = [0, 100, 200]; // Blueish
                         data.cell.styles.fontStyle = 'bold';
+                    } else if (data.cell.text[0] === 'PER') {
+                        data.cell.styles.textColor = [217, 119, 6]; // Amber
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (data.cell.text[0] === 'VAC') {
+                        data.cell.styles.textColor = [147, 51, 234]; // Purple
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (data.cell.text[0] === 'CMP') {
+                        data.cell.styles.textColor = [79, 70, 229]; // Indigo
+                        data.cell.styles.fontStyle = 'bold';
                     }
                 }
                 if (data.section === 'body' && data.column.index >= 3 + daysInMonth) {
@@ -490,7 +557,7 @@ export function useReports() {
         const finalY = doc.lastAutoTable.finalY + 10;
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
-        doc.text('LEYENDA: P = Presente | F = Falta | DM = Descanso Médico', 14, finalY);
+        doc.text('LEYENDA: P = Presente | F = Falta | DM = Descanso Médico | PER = Permiso | VAC = Vacaciones | CMP = Compensación', 14, finalY);
 
         doc.save(`Reporte_Asistencia_Mensual_${yearMonth}.pdf`);
     };
